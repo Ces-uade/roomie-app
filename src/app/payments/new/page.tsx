@@ -36,7 +36,7 @@ function PaymentForm() {
 
     const fetchPeriod = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/houses/mine?userId=${userId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!res.ok) {
           router.push('/setup');
           return;
@@ -92,7 +92,7 @@ function PaymentForm() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/payments', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

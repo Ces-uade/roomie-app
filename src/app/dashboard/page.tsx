@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
   const fetchRoommates = async (houseId: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/roommates?houseId=${houseId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseId}`);
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data?.roommates || [];
@@ -62,7 +62,7 @@ export default function DashboardPage() {
 
     const fetchHouse = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/houses/mine?userId=${userId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!res.ok) {
           router.push('/setup');
           return;
@@ -103,7 +103,7 @@ export default function DashboardPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/roommates', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,7 +158,7 @@ export default function DashboardPage() {
     setClosing(true);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/periods/${periodId}/close`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/periods/${periodId}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

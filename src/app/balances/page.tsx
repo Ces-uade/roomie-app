@@ -48,7 +48,7 @@ export default function BalancesPage() {
 
     const fetchData = async () => {
       try {
-        const houseRes = await fetch(`http://localhost:3001/api/houses/mine?userId=${userId}`);
+        const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!houseRes.ok) {
           router.push('/setup');
           return;
@@ -71,8 +71,8 @@ export default function BalancesPage() {
         }
 
         const [balancesRes, paymentsRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/balances?periodId=${periodId}&houseId=${houseId}`),
-          fetch(`http://localhost:3001/api/payments?periodId=${periodId}`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/balances?periodId=${periodId}&houseId=${houseId}`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments?periodId=${periodId}`),
         ]);
 
         if (balancesRes.ok) {

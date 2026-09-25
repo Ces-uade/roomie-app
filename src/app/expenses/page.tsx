@@ -44,7 +44,7 @@ export default function ExpensesPage() {
 
     const fetchData = async () => {
       try {
-        const houseRes = await fetch(`http://localhost:3001/api/houses/mine?userId=${userId}`);
+        const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!houseRes.ok) {
           router.push('/setup');
           return;
@@ -67,7 +67,7 @@ export default function ExpensesPage() {
           return;
         }
 
-        const expensesRes = await fetch(`http://localhost:3001/api/expenses?periodId=${periodId}`);
+        const expensesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/expenses?periodId=${periodId}`);
         if (!expensesRes.ok) {
           throw new Error('Error al cargar los gastos');
         }

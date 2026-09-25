@@ -39,7 +39,7 @@ export default function NewExpensePage() {
 
     const fetchData = async () => {
       try {
-        const houseRes = await fetch(`http://localhost:3001/api/houses/mine?userId=${userId}`);
+        const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!houseRes.ok) {
           router.push('/setup');
           return;
@@ -58,7 +58,7 @@ export default function NewExpensePage() {
         const activePeriodId = activePeriod?.id || houseData.periodId || null;
         setPeriodId(activePeriodId);
 
-        const roommatesRes = await fetch(`http://localhost:3001/api/roommates?houseId=${houseData.id}`);
+        const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseData.id}`);
         if (roommatesRes.ok) {
           const roommatesData = await roommatesRes.json();
           const list: Roommate[] = Array.isArray(roommatesData)
@@ -110,7 +110,7 @@ export default function NewExpensePage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/expenses', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
