@@ -1,19 +1,108 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Roomie — tokens de diseño
+   Los valores se definen una sola vez acá y se exponen como
+   utilidades de Tailwind (bg-surface, text-ink, border-line, …).
+   El tema oscuro cambia sólo estas variables: no hace falta
+   escribir variantes dark: en las pantallas.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #000000;
+  /* superficies */
+  --bg: #f4f6f3;
+  --surface: #ffffff;
+  --surface-2: #edf1eb;
+  --line: #dee4da;
+  --line-strong: #c6d0c1;
+
+  /* texto */
+  --ink: #19221e;
+  --ink-2: #4a554e;
+  --muted: #7a857d;
+
+  /* marca */
+  --brand: #14584a;
+  --brand-ink: #ffffff;
+  --brand-soft: #e0efe8;
+
+  /* semánticos */
+  --pos: #14584a;
+  --neg: #a8402f;
+  --neg-soft: #fae9e5;
+  --warn: #8a6212;
+  --warn-soft: #faf0da;
+
+  /* sombras */
+  --shadow-1: 0 1px 2px rgba(25, 34, 30, 0.05);
+  --shadow-2: 0 1px 2px rgba(25, 34, 30, 0.05),
+    0 18px 40px -28px rgba(25, 34, 30, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10150f;
+    --surface: #19201b;
+    --surface-2: #212a23;
+    --line: #2d3730;
+    --line-strong: #3e4a42;
+
+    --ink: #e6ede7;
+    --ink-2: #b2beb5;
+    --muted: #87958b;
+
+    --brand: #5cc4a5;
+    --brand-ink: #0c1310;
+    --brand-soft: #1c3830;
+
+    --pos: #5cc4a5;
+    --neg: #e88c76;
+    --neg-soft: #3a211c;
+    --warn: #dcb264;
+    --warn-soft: #2f2716;
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.4),
+      0 18px 40px -28px rgba(0, 0, 0, 0.7);
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --shadow-soft: var(--shadow-1);
+  --shadow-card: var(--shadow-2);
+
+  --font-sans: var(--font-karla);
+  --font-display: var(--font-fraunces);
+  --font-mono: var(--font-plex-mono);
 }
 
 body {
-  background: white;
-  color: black;
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-karla), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Los importes se alinean por columna en tablas y listados. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
