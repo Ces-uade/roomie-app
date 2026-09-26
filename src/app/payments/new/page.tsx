@@ -123,35 +123,35 @@ function PaymentForm() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Cargando...</p>
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <p className="text-muted">Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-lg rounded-xl bg-white p-8 shadow-md">
+    <div className="min-h-screen bg-bg py-10 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-surface p-8 shadow-card">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Registrar Pago</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Registrar Pago</h1>
           <Link
             href="/balances"
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
           >
             Volver a Saldos
           </Link>
         </div>
 
         {/* Texto informativo de deuda pendiente */}
-        <div className="mb-6 rounded-md bg-blue-50 p-4 border border-blue-200">
-          <p className="text-sm text-blue-900 font-medium">
-            Deuda pendiente: <span className="font-bold text-base">${maxDebt.toFixed(2)}</span>
+        <div className="mb-6 rounded-lg bg-brand-soft p-4 border border-brand/20">
+          <p className="text-sm text-ink font-medium">
+            Deuda pendiente: <span className="font-semibold text-base">${maxDebt.toFixed(2)}</span>
           </p>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="debtor" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="debtor" className="block text-sm font-semibold text-ink-2">
               Persona que paga
             </label>
             <input
@@ -159,12 +159,12 @@ function PaymentForm() {
               type="text"
               disabled
               value={debtorName}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-900 shadow-xs sm:text-sm cursor-not-allowed"
+              className="mt-1 block w-full rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-ink-2 sm:text-sm cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label htmlFor="creditor" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="creditor" className="block text-sm font-semibold text-ink-2">
               Persona que recibe
             </label>
             <input
@@ -172,12 +172,12 @@ function PaymentForm() {
               type="text"
               disabled
               value={creditorName}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-900 shadow-xs sm:text-sm cursor-not-allowed"
+              className="mt-1 block w-full rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-ink-2 sm:text-sm cursor-not-allowed"
             />
           </div>
 
           <div>
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="amount" className="block text-sm font-semibold text-ink-2">
               Monto pagado
             </label>
             <input
@@ -189,20 +189,20 @@ function PaymentForm() {
               required
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
               placeholder="0.00"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
+            <p className="rounded-lg bg-neg-soft px-3 py-2 text-sm font-medium text-neg text-center">{error}</p>
           )}
 
           <div>
             <button
               type="submit"
               disabled={submitting}
-              className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+              className="flex w-full justify-center rounded-lg border border-transparent bg-brand px-4 py-2.5 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
             >
               {submitting ? 'Registrando...' : 'Confirmar Pago'}
             </button>
@@ -217,8 +217,8 @@ export default function NewPaymentPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gray-50">
-          <p className="text-gray-500">Cargando formulario...</p>
+        <div className="flex min-h-screen items-center justify-center bg-bg">
+          <p className="text-muted">Cargando formulario...</p>
         </div>
       }
     >
