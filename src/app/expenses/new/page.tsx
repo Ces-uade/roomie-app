@@ -143,33 +143,33 @@ export default function NewExpensePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Cargando...</p>
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <p className="text-muted">Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-lg rounded-xl bg-white p-8 shadow-md">
+    <div className="min-h-screen bg-bg py-10 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg rounded-2xl border border-line bg-surface p-8 shadow-card">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Nuevo Gasto</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Nuevo Gasto</h1>
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
           >
             Volver al Dashboard
           </Link>
         </div>
 
         {roommates.length < 2 ? (
-          <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          <div className="rounded-lg border border-warn/20 bg-warn-soft p-4 text-sm font-medium text-warn">
             Necesitas al menos 2 convivientes para registrar gastos
           </div>
         ) : (
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="concept" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="concept" className="block text-sm font-semibold text-ink-2">
                 Concepto
               </label>
               <input
@@ -179,13 +179,13 @@ export default function NewExpensePage() {
                 required
                 value={concept}
                 onChange={(e) => setConcept(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
                 placeholder="Ej. Supermercado"
               />
             </div>
 
             <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="amount" className="block text-sm font-semibold text-ink-2">
                 Monto
               </label>
               <input
@@ -197,13 +197,13 @@ export default function NewExpensePage() {
                 required
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
                 placeholder="0.00"
               />
             </div>
 
             <div>
-              <label htmlFor="paidBy" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="paidBy" className="block text-sm font-semibold text-ink-2">
                 Pagado por
               </label>
               <select
@@ -212,7 +212,7 @@ export default function NewExpensePage() {
                 required
                 value={paidBy}
                 onChange={(e) => setPaidBy(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
               >
                 {roommates.map((roommate) => (
                   <option key={roommate.id} value={roommate.id}>
@@ -223,7 +223,7 @@ export default function NewExpensePage() {
             </div>
 
             <div>
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="date" className="block text-sm font-semibold text-ink-2">
                 Fecha
               </label>
               <input
@@ -233,25 +233,25 @@ export default function NewExpensePage() {
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
               />
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">
+              <span className="block text-sm font-semibold text-ink-2 mb-2">
                 Participantes
               </span>
-              <div className="space-y-2 rounded-md border border-gray-300 bg-white p-3">
+              <div className="space-y-2 rounded-lg border border-line bg-bg p-3">
                 {roommates.map((roommate) => (
                   <label
                     key={roommate.id}
-                    className="flex items-center space-x-3 text-sm text-gray-900 cursor-pointer"
+                    className="flex items-center space-x-3 text-sm text-ink cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       checked={participants.includes(roommate.id)}
                       onChange={() => handleParticipantToggle(roommate.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
                     />
                     <span>{roommate.name}</span>
                   </label>
@@ -260,14 +260,14 @@ export default function NewExpensePage() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-600 text-center">{error}</p>
+              <p className="rounded-lg bg-neg-soft px-3 py-2 text-sm font-medium text-neg text-center">{error}</p>
             )}
 
             <div>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                className="flex w-full justify-center rounded-lg border border-transparent bg-brand px-4 py-2.5 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
               >
                 {submitting ? 'Guardando...' : 'Guardar Gasto'}
               </button>
