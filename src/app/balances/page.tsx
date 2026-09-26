@@ -97,35 +97,35 @@ export default function BalancesPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Cargando saldos y deudas...</p>
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <p className="text-muted">Cargando saldos y deudas...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg py-10 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-8">
         {/* Header */}
-        <div className="border-b border-gray-200 pb-5">
+        <div className="border-b border-line pb-5">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-gray-900">Saldos y Deudas</h1>
-            <Link href="/dashboard" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Saldos y Deudas</h1>
+            <Link href="/dashboard" className="text-sm font-semibold text-brand underline-offset-4 hover:underline">
               ← Dashboard
             </Link>
           </div>
-          <p className="mt-1 text-sm text-gray-500">Estado financiero del período activo</p>
+          <p className="mt-1 text-sm text-muted">Estado financiero del período activo</p>
         </div>
 
         {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>
+          <div className="rounded-lg border border-neg/20 bg-neg-soft p-4 text-sm font-medium text-neg">{error}</div>
         )}
 
         {/* Saldos por conviviente */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Saldos por conviviente</h2>
+          <h2 className="font-display text-xl font-semibold text-ink">Saldos por conviviente</h2>
           {balances.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center text-sm text-muted">
               No hay saldos disponibles.
             </div>
           ) : (
@@ -138,27 +138,27 @@ export default function BalancesPage() {
 
                 if (bal > 0) {
                   label = 'A favor';
-                  badgeCls = 'bg-green-50 text-green-700 border-green-200';
-                  amtCls = 'text-green-600';
+                  badgeCls = 'bg-pos/10 text-pos border-pos/30';
+                  amtCls = 'text-pos';
                 } else if (bal < 0) {
                   label = 'A pagar';
-                  badgeCls = 'bg-red-50 text-red-700 border-red-200';
-                  amtCls = 'text-red-600';
+                  badgeCls = 'bg-neg-soft text-neg border-neg/30';
+                  amtCls = 'text-neg';
                 } else {
                   label = 'Saldado';
-                  badgeCls = 'bg-gray-100 text-gray-700 border-gray-300';
-                  amtCls = 'text-gray-700';
+                  badgeCls = 'bg-surface-2 text-ink-2 border-line-strong';
+                  amtCls = 'text-ink-2';
                 }
 
                 return (
-                  <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-5">
+                  <div key={item.id} className="rounded-2xl border border-line bg-surface p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-gray-900">{item.name}</span>
+                      <span className="text-lg font-semibold text-ink">{item.name}</span>
                       <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeCls}`}>
                         {label}
                       </span>
                     </div>
-                    <p className={`mt-3 text-2xl font-bold ${amtCls}`}>${Math.abs(bal).toFixed(2)}</p>
+                    <p className={`mt-3 font-display text-2xl font-semibold ${amtCls}`}>${Math.abs(bal).toFixed(2)}</p>
                   </div>
                 );
               })}
@@ -168,21 +168,21 @@ export default function BalancesPage() {
 
         {/* Deudas pendientes */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Deudas pendientes</h2>
+          <h2 className="font-display text-xl font-semibold text-ink">Deudas pendientes</h2>
           {debts.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center text-sm text-muted">
               No hay deudas pendientes en este período
             </div>
           ) : (
-            <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
+            <div className="rounded-2xl border border-line bg-surface divide-y divide-line">
               {debts.map((d, i) => (
-                <div key={i} className="p-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-900">
+                <div key={i} className="p-4 flex flex-wrap items-center justify-between gap-3 text-sm text-ink">
                   <span>
                     <strong>{d.deudor}</strong> le debe a <strong>{d.acreedor}</strong>:{' '}
-                    <span className="font-bold text-red-600">${Number(d.monto).toFixed(2)}</span>
+                    <span className="font-semibold text-neg">${Number(d.monto).toFixed(2)}</span>
                   </span>
                   <Link
-                    className="ml-4 text-blue-600 hover:underline"
+                    className="ml-4 font-semibold text-brand hover:underline"
                     href={`/payments/new?debtorId=${d.deudor_id}&debtorName=${d.deudor}&creditorId=${d.acreedor_id}&creditorName=${d.acreedor}&amount=${d.monto}`}
                   >
                     Registrar pago
@@ -195,27 +195,27 @@ export default function BalancesPage() {
 
         {/* Historial de Pagos */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Historial de Pagos</h2>
+          <h2 className="font-display text-xl font-semibold text-ink">Historial de Pagos</h2>
           {payments.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+            <div className="rounded-2xl border border-line bg-surface p-6 text-center text-sm text-muted">
               No hay pagos registrados
             </div>
           ) : (
-            <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
+            <div className="rounded-2xl border border-line bg-surface divide-y divide-line">
               {payments.map((p) => {
                 const pagador = typeof p.paid_by === 'object' ? p.paid_by.name : String(p.paid_by);
                 const receptor = typeof p.paid_to === 'object' ? p.paid_to.name : String(p.paid_to);
                 const fecha = p.created_at ? p.created_at.split('T')[0] : '';
 
                 return (
-                  <div key={p.id} className="p-4 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-900">
+                  <div key={p.id} className="p-4 flex flex-wrap items-center justify-between gap-2 text-sm text-ink">
                     <div>
                       {fecha && (
-                        <span className="mr-3 text-xs text-gray-500 bg-gray-100 rounded-md px-2 py-0.5">{fecha}</span>
+                        <span className="mr-3 text-xs text-muted bg-surface-2 rounded-md px-2 py-0.5">{fecha}</span>
                       )}
                       <strong>{pagador}</strong> le pagó a <strong>{receptor}</strong>
                     </div>
-                    <span className="font-bold text-green-600">${Number(p.amount).toFixed(2)}</span>
+                    <span className="font-semibold text-pos">${Number(p.amount).toFixed(2)}</span>
                   </div>
                 );
               })}
