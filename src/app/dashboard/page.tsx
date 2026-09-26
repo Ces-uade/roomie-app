@@ -187,43 +187,43 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Cargando dashboard...</p>
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <p className="text-muted">Cargando dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg py-10 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-5 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-line pb-5 gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">{house?.name}</h1>
-            <p className="mt-1 text-sm text-gray-500">Panel principal y gestión de convivientes</p>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">{house?.name}</h1>
+            <p className="mt-1 text-sm text-muted">Panel principal y gestión de convivientes</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/balances"
-              className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
             >
               Ver Saldos y Deudas
             </Link>
             <Link
               href="/expenses"
-              className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
             >
               Ver Historial de Gastos
             </Link>
             <Link
               href="/expenses/new"
-              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
             >
               Nuevo Gasto
             </Link>
             <button
               type="button"
               onClick={openCloseModal}
-              className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-lg bg-neg px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-neg focus:ring-offset-2 focus:ring-offset-bg"
             >
               Cerrar mes actual
             </button>
@@ -231,18 +231,18 @@ export default function DashboardPage() {
         </div>
 
         {roommates.length < 2 && (
-          <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          <div className="rounded-lg border border-warn/20 bg-warn-soft p-4 text-sm font-medium text-warn">
             Debes registrar al menos 2 convivientes para habilitar los gastos
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {/* Formulario Agregar conviviente */}
-          <div className="rounded-xl bg-white p-6 shadow-md">
-            <h2 className="text-xl font-bold text-gray-900">Agregar conviviente</h2>
+          <div className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+            <h2 className="font-display text-xl font-semibold text-ink">Agregar conviviente</h2>
             <form className="mt-4 space-y-4" onSubmit={handleAddRoommate}>
               <div>
-                <label htmlFor="roommateName" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="roommateName" className="block text-sm font-semibold text-ink-2">
                   Nombre o alias
                 </label>
                 <input
@@ -252,18 +252,18 @@ export default function DashboardPage() {
                   required
                   value={newRoommateName}
                   onChange={(e) => setNewRoommateName(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-indigo-500 focus:outline-hidden focus:ring-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
                   placeholder="Ej. Juan Pérez"
                 />
                 {roommateError && (
-                  <p className="mt-2 text-sm text-red-600">{roommateError}</p>
+                  <p className="mt-2 text-sm font-medium text-neg">{roommateError}</p>
                 )}
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-indigo-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                className="flex w-full justify-center rounded-lg border border-transparent bg-brand px-4 py-2.5 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
               >
                 {submitting ? 'Guardando...' : 'Agregar conviviente'}
               </button>
@@ -271,18 +271,18 @@ export default function DashboardPage() {
           </div>
 
           {/* Lista de convivientes */}
-          <div className="rounded-xl bg-white p-6 shadow-md">
-            <h2 className="text-xl font-bold text-gray-900">
+          <div className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+            <h2 className="font-display text-xl font-semibold text-ink">
               Convivientes ({roommates.length})
             </h2>
             <div className="mt-4">
               {roommates.length === 0 ? (
-                <p className="text-sm text-gray-500">No hay convivientes registrados aún.</p>
+                <p className="text-sm text-muted">No hay convivientes registrados aún.</p>
               ) : (
-                <ul className="divide-y divide-gray-200">
+                <ul className="divide-y divide-line">
                   {roommates.map((roommate) => (
                     <li key={roommate.id} className="py-3 flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">{roommate.name}</span>
+                      <span className="text-sm font-medium text-ink">{roommate.name}</span>
                     </li>
                   ))}
                 </ul>
@@ -293,26 +293,26 @@ export default function DashboardPage() {
 
         {showCloseModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-              <h3 className="text-lg font-bold text-gray-900">Cerrar Período</h3>
-              <p className="mt-1 text-sm text-gray-500">
+            <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-card">
+              <h3 className="font-display text-lg font-semibold text-ink">Cerrar Período</h3>
+              <p className="mt-1 text-sm text-muted">
                 Selecciona el mes y año para el próximo período a abrir.
               </p>
 
               {closeError && (
-                <p className="mt-2 text-sm text-red-600">{closeError}</p>
+                <p className="mt-2 text-sm font-medium text-neg">{closeError}</p>
               )}
 
               <form onSubmit={handleClosePeriod} className="mt-4 space-y-4">
                 <div>
-                  <label htmlFor="closeMonth" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="closeMonth" className="block text-sm font-semibold text-ink-2">
                     Mes
                   </label>
                   <select
                     id="closeMonth"
                     value={newMonth}
                     onChange={(e) => setNewMonth(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-red-500 focus:outline-hidden focus:ring-red-500 sm:text-sm"
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-neg focus:outline-hidden focus:ring-2 focus:ring-neg/25 sm:text-sm"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <option key={m} value={m}>
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="closeYear" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="closeYear" className="block text-sm font-semibold text-ink-2">
                     Año
                   </label>
                   <input
@@ -331,7 +331,7 @@ export default function DashboardPage() {
                     type="number"
                     value={newYear}
                     onChange={(e) => setNewYear(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-xs focus:border-red-500 focus:outline-hidden focus:ring-red-500 sm:text-sm"
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-neg focus:outline-hidden focus:ring-2 focus:ring-neg/25 sm:text-sm"
                     required
                   />
                 </div>
@@ -341,14 +341,14 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => setShowCloseModal(false)}
                     disabled={closing}
-                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+                    className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-line-strong focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={closing}
-                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                    className="rounded-lg bg-neg px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-neg focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
                   >
                     {closing ? 'Cerrando...' : 'Confirmar'}
                   </button>
