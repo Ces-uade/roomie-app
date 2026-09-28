@@ -54,7 +54,7 @@ export default function BalancesPage() {
           return;
         }
         const data = await houseRes.json().catch(() => null);
-        const houseData = Array.isArray(data) ? data[0] : (data?.house || data);
+        const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
         if (!houseData || !houseData.id) {
           router.push('/setup');
           return;
