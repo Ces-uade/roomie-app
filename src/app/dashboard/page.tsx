@@ -69,7 +69,7 @@ export default function DashboardPage() {
         }
 
         const data = await res.json().catch(() => null);
-        const houseData = data?.house || data;
+        const houseData = Array.isArray(data) ? data[0] : (data?.house || data);
 
         if (!houseData || !houseData.id) {
           router.push('/setup');

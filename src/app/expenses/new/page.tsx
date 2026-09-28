@@ -45,7 +45,8 @@ export default function NewExpensePage() {
           return;
         }
 
-        const houseData = await houseRes.json().catch(() => null);
+        const data = await houseRes.json().catch(() => null);
+        const houseData = Array.isArray(data) ? data[0] : (data?.house || data);
         if (!houseData || !houseData.id) {
           router.push('/setup');
           return;

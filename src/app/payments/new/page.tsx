@@ -42,7 +42,8 @@ function PaymentForm() {
           return;
         }
 
-        const houseData = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null);
+        const houseData = Array.isArray(data) ? data[0] : (data?.house || data);
         if (!houseData || !houseData.id) {
           router.push('/setup');
           return;
