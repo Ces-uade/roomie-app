@@ -1,7 +1,19 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-2xl font-bold">Roomie App - Frontend</h1>
-    </main>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      router.replace('/select-house');
+    } else {
+      router.replace('/login');
+    }
+  }, [router]);
+
+  return null;
 }
