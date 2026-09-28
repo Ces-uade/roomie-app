@@ -34,7 +34,7 @@ export default function LoginPage() {
         localStorage.setItem('userId', userId);
       }
 
-      router.push('/setup');
+      router.push('/select-house');
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

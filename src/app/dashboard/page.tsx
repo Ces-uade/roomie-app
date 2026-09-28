@@ -3,22 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-interface Period {
-  id: string;
-  house_id?: string;
-  month?: number;
-  year?: number;
-  is_closed?: boolean;
-}
-
-interface House {
-  id: string;
-  name: string;
-  month?: number;
-  year?: number;
-  periods?: Period[];
-}
+import { useHouse } from '@/context/HouseContext';
 
 interface Roommate {
   id: string;
@@ -27,7 +12,7 @@ interface Roommate {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [house, setHouse] = useState<House | null>(null);
+  const { activeHouse: house } = useHouse();
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [newRoommateName, setNewRoommateName] = useState('');
   const [roommateError, setRoommateError] = useState<string | null>(null);
@@ -42,14 +27,16 @@ export default function DashboardPage() {
 
   const fetchRoommates = async (houseId: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseId}`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseId}`
+      );
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data?.roommates || [];
         setRoommates(list);
       }
     } catch {
-      // Error fetching roommates
+      // ignore
     }
   };
 
@@ -60,33 +47,13 @@ export default function DashboardPage() {
       return;
     }
 
-    const fetchHouse = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
-        if (!res.ok) {
-          router.push('/setup');
-          return;
-        }
+    if (!house) {
+      router.push('/select-house');
+      return;
+    }
 
-        const data = await res.json().catch(() => null);
-        const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
-
-        if (!houseData || !houseData.id) {
-          router.push('/setup');
-          return;
-        }
-
-        setHouse(houseData);
-        await fetchRoommates(houseData.id);
-      } catch {
-        router.push('/setup');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHouse();
-  }, [router]);
+    fetchRoommates(house.id).finally(() => setLoading(false));
+  }, [house, router]);
 
   const handleAddRoommate = async (e: FormEvent) => {
     e.preventDefault();
@@ -103,15 +70,14 @@ export default function DashboardPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          houseId: house.id,
-          house_id: house.id,
-          name: trimmedName,
-        }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ houseId: house.id, house_id: house.id, name: trimmedName }),
+        }
+      );
 
       const data = await res.json().catch(() => null);
 
@@ -122,11 +88,7 @@ export default function DashboardPage() {
       setNewRoommateName('');
       await fetchRoommates(house.id);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setRoommateError(err.message);
-      } else {
-        setRoommateError('Ocurrió un error inesperado');
-      }
+      setRoommateError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
     } finally {
       setSubmitting(false);
     }
@@ -134,12 +96,10 @@ export default function DashboardPage() {
 
   const openCloseModal = () => {
     if (house?.periods?.[0]?.month && house?.periods?.[0]?.year) {
-      const curM = house.periods[0].month;
-      const curY = house.periods[0].year;
-      const nextM = curM === 12 ? 1 : curM + 1;
-      const nextY = curM === 12 ? curY + 1 : curY;
-      setNewMonth(nextM.toString());
-      setNewYear(nextY.toString());
+      const curM = house.periods[0].month!;
+      const curY = house.periods[0].year!;
+      setNewMonth((curM === 12 ? 1 : curM + 1).toString());
+      setNewYear((curM === 12 ? curY + 1 : curY).toString());
     }
     setCloseError(null);
     setShowCloseModal(true);
@@ -158,15 +118,18 @@ export default function DashboardPage() {
     setClosing(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/periods/${periodId}/close`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          houseId: house.id,
-          newMonth: parseInt(newMonth, 10),
-          newYear: parseInt(newYear, 10),
-        }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/periods/${periodId}/close`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            houseId: house.id,
+            newMonth: parseInt(newMonth, 10),
+            newYear: parseInt(newYear, 10),
+          }),
+        }
+      );
 
       const data = await res.json().catch(() => null);
 
@@ -176,11 +139,7 @@ export default function DashboardPage() {
 
       window.location.reload();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setCloseError(err.message);
-      } else {
-        setCloseError('Ocurrió un error inesperado');
-      }
+      setCloseError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
       setClosing(false);
     }
   };
@@ -198,10 +157,18 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-4xl space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-line pb-5 gap-4">
           <div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">{house?.name}</h1>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
+              {house?.name}
+            </h1>
             <p className="mt-1 text-sm text-muted">Panel principal y gestión de convivientes</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/select-house"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
+            >
+              Cambiar casa
+            </Link>
             <Link
               href="/balances"
               className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
