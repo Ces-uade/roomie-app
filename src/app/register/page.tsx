@@ -25,13 +25,29 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.message || 'Error al registrar el usuario');
+        const errorMessage = data?.message || data?.error;
+        const isDuplicate =
+          res.status === 409 ||
+          (typeof errorMessage === 'string' &&
+            /registrado|duplicate|already registered|already exists|already in use/i.test(errorMessage));
+
+        if (isDuplicate) {
+          throw new Error('Ese email ya está registrado. Iniciá sesión o usá otro email');
+        }
+
+        throw new Error(errorMessage || 'Error al registrar el usuario');
       }
 
       router.push('/login');
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        const isDuplicate =
+          /registrado|duplicate|already registered|already exists|already in use/i.test(err.message);
+        if (isDuplicate) {
+          setError('Ese email ya está registrado. Iniciá sesión o usá otro email');
+        } else {
+          setError(err.message);
+        }
       } else {
         setError('Ocurrió un error inesperado');
       }
