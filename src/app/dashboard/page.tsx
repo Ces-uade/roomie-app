@@ -65,6 +65,16 @@ export default function DashboardPage() {
       return;
     }
 
+    const normalizedInputName = trimmedName.toLowerCase();
+    const isDuplicate = roommates.some(
+      (rm) => rm.name && rm.name.trim().toLowerCase() === normalizedInputName
+    );
+
+    if (isDuplicate) {
+      setRoommateError('Ya existe un conviviente con ese nombre o alias');
+      return;
+    }
+
     if (!house?.id) return;
 
     setSubmitting(true);
@@ -82,13 +92,29 @@ export default function DashboardPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.message || data?.error || 'Error al agregar el conviviente');
+        const errorMsg = data?.message || data?.error;
+        if (
+          res.status === 400 &&
+          (errorMsg === 'Ya existe un conviviente con ese nombre o alias' ||
+            /duplicad|ya existe/i.test(errorMsg || ''))
+        ) {
+          throw new Error('Ya existe un conviviente con ese nombre o alias');
+        }
+        throw new Error(errorMsg || 'Error al agregar el conviviente');
       }
 
       setNewRoommateName('');
       await fetchRoommates(house.id);
     } catch (err: unknown) {
-      setRoommateError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+      if (err instanceof Error) {
+        if (/ya existe un conviviente|duplicad/i.test(err.message)) {
+          setRoommateError('Ya existe un conviviente con ese nombre o alias');
+        } else {
+          setRoommateError(err.message);
+        }
+      } else {
+        setRoommateError('Ocurrió un error inesperado');
+      }
     } finally {
       setSubmitting(false);
     }
