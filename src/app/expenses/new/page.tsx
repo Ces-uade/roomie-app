@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useHouse } from '@/context/HouseContext';
 
 interface Roommate {
   id: string;
@@ -11,17 +12,22 @@ interface Roommate {
 
 interface Period {
   id: string;
+  month?: number;
+  year?: number;
   is_closed?: boolean;
 }
 
 export default function NewExpensePage() {
   const router = useRouter();
+  const { activeHouse } = useHouse();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const [periodId, setPeriodId] = useState<string | null>(null);
+  const [periodInfo, setPeriodInfo] = useState<{ month?: number; year?: number } | null>(null);
   const [roommates, setRoommates] = useState<Roommate[]>([]);
 
   const [concept, setConcept] = useState('');
@@ -58,6 +64,11 @@ export default function NewExpensePage() {
 
         const activePeriodId = activePeriod?.id || houseData.periodId || null;
         setPeriodId(activePeriodId);
+        if (activePeriod?.month && activePeriod?.year) {
+          setPeriodInfo({ month: activePeriod.month, year: activePeriod.year });
+        } else if (houseData.month && houseData.year) {
+          setPeriodInfo({ month: houseData.month, year: houseData.year });
+        }
 
         const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseData.id}`);
         if (roommatesRes.ok) {
@@ -91,6 +102,40 @@ export default function NewExpensePage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setDateError(null);
+
+    const activePeriod =
+      activeHouse?.periods?.find((p) => !p.is_closed) ||
+      activeHouse?.periods?.[0];
+    const periodMonth = activePeriod?.month || periodInfo?.month || activeHouse?.month;
+    const periodYear = activePeriod?.year || periodInfo?.year || activeHouse?.year;
+
+    if (periodMonth && periodYear) {
+      const dateParts = date.split('T')[0].split('-');
+      const expenseYear = parseInt(dateParts[0], 10);
+      const expenseMonth = parseInt(dateParts[1], 10);
+
+      if (isNaN(expenseYear) || isNaN(expenseMonth)) {
+        const msg = 'La fecha del gasto no es válida';
+        setDateError(msg);
+        setError(msg);
+        return;
+      }
+
+      if (expenseYear < periodYear || (expenseYear === periodYear && expenseMonth < periodMonth)) {
+        const msg = 'La fecha del gasto no puede ser anterior al inicio del período abierto';
+        setDateError(msg);
+        setError(msg);
+        return;
+      }
+
+      if (expenseYear !== periodYear || expenseMonth !== periodMonth) {
+        const msg = 'La fecha del gasto debe pertenecer al período abierto';
+        setDateError(msg);
+        setError(msg);
+        return;
+      }
+    }
 
     if (participants.length === 0) {
       setError('Seleccioná al menos un conviviente para dividir el gasto');
@@ -127,13 +172,20 @@ export default function NewExpensePage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data?.error || data?.message || 'Error al registrar el gasto');
+        const errorMsg = data?.error || data?.message || 'Error al registrar el gasto';
+        if (res.status === 400 && /fecha|período|periodo|anterior/i.test(errorMsg)) {
+          setDateError(errorMsg);
+        }
+        throw new Error(errorMsg);
       }
 
       router.push('/dashboard');
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
+        if (/fecha|período|periodo|anterior/i.test(err.message)) {
+          setDateError(err.message);
+        }
       } else {
         setError('Ocurrió un error inesperado');
       }
@@ -233,9 +285,19 @@ export default function NewExpensePage() {
                 type="date"
                 required
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setDateError(null);
+                }}
+                className={`mt-1 block w-full rounded-lg border bg-bg px-3 py-2.5 text-ink transition-colors focus:outline-hidden focus:ring-2 sm:text-sm ${
+                  dateError
+                    ? 'border-neg text-neg focus:border-neg focus:ring-neg/25'
+                    : 'border-line focus:border-brand focus:ring-brand/25'
+                }`}
               />
+              {dateError && (
+                <p className="mt-1.5 text-sm font-medium text-neg">{dateError}</p>
+              )}
             </div>
 
             <div>
