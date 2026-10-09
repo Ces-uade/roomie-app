@@ -99,7 +99,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-sm text-muted">
-            ¿No tienes una cuenta?{' '}
+            ¿No tienes cuenta?{' '}
             <Link href="/register" className="font-semibold text-brand underline-offset-4 hover:underline">
               Regístrate
             </Link>

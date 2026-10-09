@@ -38,14 +38,14 @@ function PaymentForm() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!res.ok) {
-          router.push('/setup');
+          router.push('/select-house');
           return;
         }
 
         const data = await res.json().catch(() => null);
         const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
         if (!houseData || !houseData.id) {
-          router.push('/setup');
+          router.push('/select-house');
           return;
         }
 
@@ -56,7 +56,7 @@ function PaymentForm() {
         const pId = activePeriod?.id || houseData.periodId;
         setPeriodId(pId);
       } catch {
-        router.push('/setup');
+        router.push('/select-house');
       } finally {
         setLoading(false);
       }

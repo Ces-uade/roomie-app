@@ -41,14 +41,14 @@ export default function NewExpensePage() {
       try {
         const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
         if (!houseRes.ok) {
-          router.push('/setup');
+          router.push('/select-house');
           return;
         }
 
         const data = await houseRes.json().catch(() => null);
         const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
         if (!houseData || !houseData.id) {
-          router.push('/setup');
+          router.push('/select-house');
           return;
         }
 
@@ -73,7 +73,7 @@ export default function NewExpensePage() {
           }
         }
       } catch {
-        router.push('/setup');
+        router.push('/select-house');
       } finally {
         setLoading(false);
       }
