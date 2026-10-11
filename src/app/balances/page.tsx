@@ -53,10 +53,15 @@ export default function BalancesPage() {
           router.push('/select-house');
           return;
         }
-        const data = await houseRes.json().catch(() => null);
         const activeId = localStorage.getItem('activeHouseId');
+        if (!activeId) {
+          router.push('/select-house');
+          return;
+        }
+
+        const data = await houseRes.json().catch(() => null);
         const list = Array.isArray(data) ? data : data?.house ? [data.house] : data ? [data] : [];
-        const houseData = (activeId ? list.find((h: { id: string }) => h.id === activeId) : null) || (list.length > 0 ? list[list.length - 1] : null);
+        const houseData = list.find((h: { id: string }) => h.id === activeId);
         if (!houseData || !houseData.id) {
           router.push('/select-house');
           return;
