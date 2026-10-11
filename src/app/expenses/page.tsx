@@ -51,7 +51,9 @@ export default function ExpensesPage() {
         }
 
         const data = await houseRes.json().catch(() => null);
-        const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
+        const activeId = localStorage.getItem('activeHouseId');
+        const list = Array.isArray(data) ? data : data?.house ? [data.house] : data ? [data] : [];
+        const houseData = (activeId ? list.find((h: { id: string }) => h.id === activeId) : null) || (list.length > 0 ? list[list.length - 1] : null);
         if (!houseData || !houseData.id) {
           router.push('/select-house');
           return;

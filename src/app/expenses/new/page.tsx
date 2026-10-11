@@ -19,7 +19,7 @@ interface Period {
 
 export default function NewExpensePage() {
   const router = useRouter();
-  const { activeHouse, roommates: contextRoommates, setRoommates: setContextRoommates } = useHouse();
+  const { activeHouse, setActiveHouse, roommates: contextRoommates, setRoommates: setContextRoommates } = useHouse();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +61,12 @@ export default function NewExpensePage() {
       return;
     }
 
+    const activeId = activeHouse?.id || localStorage.getItem('activeHouseId');
+    if (!activeId) {
+      router.push('/select-house');
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
@@ -70,16 +76,15 @@ export default function NewExpensePage() {
         }
 
         const data = await houseRes.json().catch(() => null);
-        const houseData =
-          activeHouse?.id
-            ? activeHouse
-            : Array.isArray(data) && data.length > 0
-            ? data.find((h: { id: string }) => h.id === activeHouse?.id) || data[data.length - 1]
-            : data?.house || data;
+        const housesList = Array.isArray(data) ? data : data?.house ? [data.house] : data ? [data] : [];
+        const houseData = housesList.find((h: { id: string }) => h.id === activeId) || (activeHouse?.id === activeId ? activeHouse : null);
+
         if (!houseData || !houseData.id) {
           router.push('/select-house');
           return;
         }
+
+        setActiveHouse((prev) => (prev ? { ...houseData, roommates: prev.roommates || [] } : houseData));
 
         const activePeriod =
           houseData.periods?.find((p: Period) => !p.is_closed) ||
@@ -93,7 +98,7 @@ export default function NewExpensePage() {
           setPeriodInfo({ month: houseData.month, year: houseData.year });
         }
 
-        const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${houseData.id}`);
+        const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${activeId}`);
         if (roommatesRes.ok) {
           const roommatesData = await roommatesRes.json();
           const list: Roommate[] = Array.isArray(roommatesData)
@@ -102,6 +107,7 @@ export default function NewExpensePage() {
 
           setRoommates(list);
           setContextRoommates(list);
+          setActiveHouse((prev) => (prev ? { ...prev, roommates: list } : null));
           setParticipants(list.map((r) => r.id));
           if (list.length > 0) {
             setPaidBy(list[0].id);

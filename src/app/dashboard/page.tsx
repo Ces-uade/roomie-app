@@ -48,12 +48,15 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!house) {
+    const storedHouseId = localStorage.getItem('activeHouseId');
+    if (!house && !storedHouseId) {
       router.push('/select-house');
       return;
     }
 
-    fetchRoommates(house.id).finally(() => setLoading(false));
+    if (house?.id) {
+      fetchRoommates(house.id).finally(() => setLoading(false));
+    }
   }, [house, router]);
 
   const handleAddRoommate = async (e: FormEvent) => {

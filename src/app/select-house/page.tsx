@@ -44,6 +44,7 @@ export default function SelectHousePage() {
   }, [router]);
 
   const handleSelectHouse = (house: House) => {
+    localStorage.setItem('activeHouseId', house.id);
     setActiveHouse(house);
     router.push('/dashboard');
   };

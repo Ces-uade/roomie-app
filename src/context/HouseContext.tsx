@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface Roommate {
   id: string;
@@ -47,9 +47,46 @@ export function HouseProvider({ children }: { children: ReactNode }) {
   const [activeHouse, setActiveHouseState] = useState<House | null>(null);
   const [roommates, setRoommatesState] = useState<Roommate[]>([]);
 
+  useEffect(() => {
+    const activeId = typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null;
+    const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+    const targetId = activeHouse?.id || activeId;
+
+    if (targetId && userId) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then(async (data) => {
+          if (!data) return;
+          const list: House[] = Array.isArray(data) ? data : data ? [data] : [];
+          const found = list.find((h) => h.id === targetId);
+          if (found) {
+            const rmRes = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${found.id}`
+            ).catch(() => null);
+            let rmList: Roommate[] = [];
+            if (rmRes && rmRes.ok) {
+              const rmData = await rmRes.json().catch(() => null);
+              rmList = Array.isArray(rmData) ? rmData : rmData?.roommates || [];
+            }
+            setActiveHouseState((prev) => ({
+              ...found,
+              roommates: rmList.length > 0 ? rmList : prev?.roommates || [],
+            }));
+            if (rmList.length > 0) {
+              setRoommatesState(rmList);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   const setActiveHouse = (house: House | null | ((prev: House | null) => House | null)) => {
     setActiveHouseState((prev) => {
       const next = typeof house === 'function' ? house(prev) : house;
+      if (next?.id && typeof window !== 'undefined') {
+        localStorage.setItem('activeHouseId', next.id);
+      }
       if (next?.roommates) {
         setRoommatesState(next.roommates);
       }
