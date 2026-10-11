@@ -41,6 +41,8 @@ export default function DashboardPage() {
     }
   };
 
+  const houseId = house?.id;
+
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     if (!userId) {
@@ -49,15 +51,16 @@ export default function DashboardPage() {
     }
 
     const storedHouseId = localStorage.getItem('activeHouseId');
-    if (!house && !storedHouseId) {
+    if (!houseId && !storedHouseId) {
       router.push('/select-house');
       return;
     }
 
-    if (house?.id) {
-      fetchRoommates(house.id).finally(() => setLoading(false));
+    const targetId = houseId || storedHouseId;
+    if (targetId) {
+      fetchRoommates(targetId).finally(() => setLoading(false));
     }
-  }, [house, router]);
+  }, [houseId, router]);
 
   const handleAddRoommate = async (e: FormEvent) => {
     e.preventDefault();

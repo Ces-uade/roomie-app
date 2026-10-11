@@ -52,14 +52,10 @@ function ExpenseForm() {
 
   useEffect(() => {
     if (effectiveRoommates.length > 0) {
-      if (participants.length === 0) {
-        setParticipants(effectiveRoommates.map((r) => r.id));
-      }
-      if (!paidBy) {
-        setPaidBy(effectiveRoommates[0].id);
-      }
+      setParticipants((prev) => (prev.length === 0 ? effectiveRoommates.map((r) => r.id) : prev));
+      setPaidBy((prev) => (!prev ? effectiveRoommates[0].id : prev));
     }
-  }, [effectiveRoommates, participants.length, paidBy]);
+  }, [effectiveRoommates.length]);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -94,8 +90,6 @@ function ExpenseForm() {
           return;
         }
 
-        setActiveHouse((prev) => (prev ? { ...houseData, roommates: prev.roommates || [] } : houseData));
-
         const activePeriod =
           houseData.periods?.find((p: Period) => !p.is_closed) ||
           houseData.periods?.[0];
@@ -117,7 +111,6 @@ function ExpenseForm() {
 
           setRoommates(list);
           setContextRoommates(list);
-          setActiveHouse((prev) => (prev ? { ...prev, roommates: list } : { ...houseData, roommates: list }));
           setParticipants(list.map((r) => r.id));
           if (list.length > 0) {
             setPaidBy(list[0].id);
