@@ -12,7 +12,7 @@ interface Roommate {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { activeHouse: house } = useHouse();
+  const { activeHouse: house, setRoommates: setContextRoommates, addRoommate } = useHouse();
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [newRoommateName, setNewRoommateName] = useState('');
   const [roommateError, setRoommateError] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export default function DashboardPage() {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data?.roommates || [];
         setRoommates(list);
+        setContextRoommates(list);
       }
     } catch {
       // ignore
@@ -101,6 +102,10 @@ export default function DashboardPage() {
           throw new Error('Ya existe un conviviente con ese nombre o alias');
         }
         throw new Error(errorMsg || 'Error al agregar el conviviente');
+      }
+
+      if (data && data.id) {
+        addRoommate({ id: data.id, name: trimmedName, house_id: house.id });
       }
 
       setNewRoommateName('');

@@ -19,7 +19,7 @@ interface Period {
 
 export default function NewExpensePage() {
   const router = useRouter();
-  const { activeHouse } = useHouse();
+  const { activeHouse, roommates: contextRoommates, setRoommates: setContextRoommates } = useHouse();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -30,11 +30,29 @@ export default function NewExpensePage() {
   const [periodInfo, setPeriodInfo] = useState<{ month?: number; year?: number } | null>(null);
   const [roommates, setRoommates] = useState<Roommate[]>([]);
 
+  const effectiveRoommates =
+    contextRoommates && contextRoommates.length > 0
+      ? contextRoommates
+      : activeHouse?.roommates && activeHouse.roommates.length > 0
+      ? activeHouse.roommates
+      : roommates;
+
   const [concept, setConcept] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [participants, setParticipants] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (effectiveRoommates.length > 0) {
+      if (participants.length === 0) {
+        setParticipants(effectiveRoommates.map((r) => r.id));
+      }
+      if (!paidBy) {
+        setPaidBy(effectiveRoommates[0].id);
+      }
+    }
+  }, [effectiveRoommates, participants.length, paidBy]);
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -52,7 +70,12 @@ export default function NewExpensePage() {
         }
 
         const data = await houseRes.json().catch(() => null);
-        const houseData = Array.isArray(data) && data.length > 0 ? data[data.length - 1] : (data?.house || data);
+        const houseData =
+          activeHouse?.id
+            ? activeHouse
+            : Array.isArray(data) && data.length > 0
+            ? data.find((h: { id: string }) => h.id === activeHouse?.id) || data[data.length - 1]
+            : data?.house || data;
         if (!houseData || !houseData.id) {
           router.push('/select-house');
           return;
@@ -78,6 +101,7 @@ export default function NewExpensePage() {
             : roommatesData?.roommates || [];
 
           setRoommates(list);
+          setContextRoommates(list);
           setParticipants(list.map((r) => r.id));
           if (list.length > 0) {
             setPaidBy(list[0].id);
@@ -215,7 +239,7 @@ export default function NewExpensePage() {
           </Link>
         </div>
 
-        {roommates.length < 2 ? (
+        {effectiveRoommates.length < 2 ? (
           <div className="rounded-lg border border-warn/20 bg-warn-soft p-4 text-sm font-medium text-warn">
             Necesitas al menos 2 convivientes para registrar gastos
           </div>
@@ -267,7 +291,7 @@ export default function NewExpensePage() {
                 onChange={(e) => setPaidBy(e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
               >
-                {roommates.map((roommate) => (
+                {effectiveRoommates.map((roommate) => (
                   <option key={roommate.id} value={roommate.id}>
                     {roommate.name}
                   </option>
@@ -305,7 +329,7 @@ export default function NewExpensePage() {
                 Participantes
               </span>
               <div className="space-y-2 rounded-lg border border-line bg-bg p-3">
-                {roommates.map((roommate) => (
+                {effectiveRoommates.map((roommate) => (
                   <label
                     key={roommate.id}
                     className="flex items-center space-x-3 text-sm text-ink cursor-pointer"
