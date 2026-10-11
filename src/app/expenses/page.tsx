@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useHouse } from '@/context/HouseContext';
 
 interface Split {
   id: string;
@@ -29,6 +30,8 @@ interface Period {
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const { activeHouse } = useHouse();
+  const [activeId, setActiveId] = useState<string | null>(() => activeHouse?.id || (typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null));
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +139,7 @@ export default function ExpensesPage() {
           </div>
 
           <Link
-            href="/expenses/new"
+            href={activeHouse?.id || activeId ? `/expenses/new?houseId=${activeHouse?.id || activeId}` : '/expenses/new'}
             className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
           >
             Nuevo gasto

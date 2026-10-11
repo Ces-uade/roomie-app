@@ -48,9 +48,15 @@ export function HouseProvider({ children }: { children: ReactNode }) {
   const [roommates, setRoommatesState] = useState<Roommate[]>([]);
 
   useEffect(() => {
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const queryId = urlParams?.get('houseId');
     const activeId = typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null;
+    const targetId = queryId || activeHouse?.id || activeId;
     const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
-    const targetId = activeHouse?.id || activeId;
+
+    if (targetId && typeof window !== 'undefined') {
+      localStorage.setItem('activeHouseId', targetId);
+    }
 
     if (targetId && userId) {
       fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`)

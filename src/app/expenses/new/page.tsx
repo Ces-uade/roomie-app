@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState, FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useHouse } from '@/context/HouseContext';
 
@@ -17,9 +17,16 @@ interface Period {
   is_closed?: boolean;
 }
 
-export default function NewExpensePage() {
+function ExpenseForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeHouse, setActiveHouse, roommates: contextRoommates, setRoommates: setContextRoommates } = useHouse();
+
+  const queryHouseId = searchParams.get('houseId');
+  const targetHouseId =
+    queryHouseId ||
+    activeHouse?.id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -61,10 +68,13 @@ export default function NewExpensePage() {
       return;
     }
 
-    const activeId = activeHouse?.id || localStorage.getItem('activeHouseId');
-    if (!activeId) {
+    if (!targetHouseId) {
       router.push('/select-house');
       return;
+    }
+
+    if (typeof window !== 'undefined' && targetHouseId) {
+      localStorage.setItem('activeHouseId', targetHouseId);
     }
 
     const fetchData = async () => {
@@ -77,7 +87,7 @@ export default function NewExpensePage() {
 
         const data = await houseRes.json().catch(() => null);
         const housesList = Array.isArray(data) ? data : data?.house ? [data.house] : data ? [data] : [];
-        const houseData = housesList.find((h: { id: string }) => h.id === activeId) || (activeHouse?.id === activeId ? activeHouse : null);
+        const houseData = housesList.find((h: { id: string }) => h.id === targetHouseId);
 
         if (!houseData || !houseData.id) {
           router.push('/select-house');
@@ -98,7 +108,7 @@ export default function NewExpensePage() {
           setPeriodInfo({ month: houseData.month, year: houseData.year });
         }
 
-        const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${activeId}`);
+        const roommatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/roommates?houseId=${targetHouseId}`);
         if (roommatesRes.ok) {
           const roommatesData = await roommatesRes.json();
           const list: Roommate[] = Array.isArray(roommatesData)
@@ -107,7 +117,7 @@ export default function NewExpensePage() {
 
           setRoommates(list);
           setContextRoommates(list);
-          setActiveHouse((prev) => (prev ? { ...prev, roommates: list } : null));
+          setActiveHouse((prev) => (prev ? { ...prev, roommates: list } : { ...houseData, roommates: list }));
           setParticipants(list.map((r) => r.id));
           if (list.length > 0) {
             setPaidBy(list[0].id);
@@ -121,7 +131,7 @@ export default function NewExpensePage() {
     };
 
     fetchData();
-  }, [router]);
+  }, [router, targetHouseId]);
 
   const handleParticipantToggle = (id: string) => {
     setParticipants((prev) =>
@@ -369,5 +379,19 @@ export default function NewExpensePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function NewExpensePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-bg">
+          <p className="text-muted">Cargando...</p>
+        </div>
+      }
+    >
+      <ExpenseForm />
+    </Suspense>
   );
 }
