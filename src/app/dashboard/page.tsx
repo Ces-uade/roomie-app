@@ -255,6 +255,12 @@ export default function DashboardPage() {
               Ver Historial de Gastos
             </Link>
             <Link
+              href="/tasks"
+              className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
+            >
+              Ver Tareas
+            </Link>
+            <Link
               href={house?.id ? `/expenses/new?houseId=${house.id}` : '/expenses/new'}
               className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
             >
@@ -329,7 +335,7 @@ export default function DashboardPage() {
             {invite && (
               <div className="mt-4 space-y-3 rounded-lg border border-line bg-bg p-4 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-ink-2">
+                  <span className="break-all text-ink-2">
                     Código: <strong className="text-ink">{invite.code}</strong>
                   </span>
                   <button
