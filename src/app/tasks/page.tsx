@@ -7,6 +7,14 @@ import { House, Roommate } from '@/context/HouseContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+interface Period {
+  id: string;
+  house_id?: string;
+  month?: number;
+  year?: number;
+  is_closed?: boolean;
+}
+
 interface Task {
   id: string;
   house_id: string;
@@ -17,6 +25,20 @@ interface Task {
   current_assignee: { id: string; name: string } | null;
   next_due_date: string;
   is_overdue: boolean;
+}
+
+interface RoommateStat {
+  roommateId: string;
+  name: string;
+  completedCount: number;
+  percentage: number;
+}
+
+interface TaskStats {
+  period?: Period;
+  totalTasksCount: number;
+  totalCompletedInPeriod: number;
+  stats: RoommateStat[];
 }
 
 const FREQUENCY_OPTIONS = [
@@ -50,6 +72,12 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  // Períodos y estadísticas RM-12
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
   // Acciones en tareas
   const [completingId, setCompletingId] = useState<string | null>(null);
 
@@ -61,6 +89,9 @@ export default function TasksPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+  const isPeriodClosed = selectedPeriod?.is_closed ?? false;
+
   const fetchTasks = useCallback(async (houseId: string) => {
     try {
       const res = await fetch(`${API}/api/tasks?houseId=${houseId}`);
@@ -71,6 +102,43 @@ export default function TasksPage() {
     } catch {
       // ignore
     }
+  }, []);
+
+  const fetchStats = useCallback(async (houseId: string, periodId: string) => {
+    if (!houseId || !periodId) return;
+    setStatsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/tasks/stats?houseId=${houseId}&periodId=${periodId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTaskStats(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  const fetchPeriods = useCallback(async (houseId: string, houseData?: House): Promise<Period[]> => {
+    try {
+      const res = await fetch(`${API}/api/periods?houseId=${houseId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setPeriods(data);
+          return data;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (houseData?.periods && houseData.periods.length > 0) {
+      setPeriods(houseData.periods);
+      return houseData.periods;
+    }
+    return [];
   }, []);
 
   useEffect(() => {
@@ -115,6 +183,14 @@ export default function TasksPage() {
         }
         setRoommates(rmList);
 
+        // Fetch Periods
+        const loadedPeriods = await fetchPeriods(houseData.id, houseData);
+        const openPeriod = loadedPeriods.find((p) => !p.is_closed) || loadedPeriods[0];
+        if (openPeriod?.id) {
+          setSelectedPeriodId(openPeriod.id);
+          fetchStats(houseData.id, openPeriod.id);
+        }
+
         // Fetch Tasks
         await fetchTasks(houseData.id);
       } catch {
@@ -125,9 +201,17 @@ export default function TasksPage() {
     };
 
     init();
-  }, [router, fetchTasks]);
+  }, [router, fetchTasks, fetchPeriods, fetchStats]);
+
+  const handlePeriodChange = (newPeriodId: string) => {
+    setSelectedPeriodId(newPeriodId);
+    if (house?.id) {
+      fetchStats(house.id, newPeriodId);
+    }
+  };
 
   const handleOpenModal = () => {
+    if (isPeriodClosed) return;
     if (roommates.length < 2) {
       setPageError('Se necesitan al menos 2 convivientes en la casa para crear tareas.');
       return;
@@ -156,7 +240,7 @@ export default function TasksPage() {
 
   const handleCreateTask = async (e: FormEvent) => {
     e.preventDefault();
-    if (!house?.id) return;
+    if (!house?.id || isPeriodClosed) return;
 
     const trimmed = taskName.trim();
     if (trimmed.length < 1 || trimmed.length > 60) {
@@ -196,6 +280,10 @@ export default function TasksPage() {
 
       setTasks((prev) => [...prev, data]);
       handleCloseModal();
+
+      if (selectedPeriodId) {
+        fetchStats(house.id, selectedPeriodId);
+      }
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Error al crear la tarea');
     } finally {
@@ -204,7 +292,7 @@ export default function TasksPage() {
   };
 
   const handleComplete = async (task: Task) => {
-    if (completingId) return;
+    if (completingId || isPeriodClosed || !house?.id) return;
     setCompletingId(task.id);
     try {
       const res = await fetch(`${API}/api/tasks/${task.id}/complete`, {
@@ -216,6 +304,9 @@ export default function TasksPage() {
       if (res.ok) {
         const updated = await res.json();
         setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+        if (selectedPeriodId) {
+          fetchStats(house.id, selectedPeriodId);
+        }
       }
     } catch {
       // ignore
@@ -233,6 +324,9 @@ export default function TasksPage() {
   }
 
   const today = getTodayStr();
+  const totalCompleted = taskStats?.totalCompletedInPeriod ?? 0;
+  const statsList = taskStats?.stats ?? [];
+  const isEmptyPeriod = tasks.length === 0 && totalCompleted === 0;
 
   return (
     <div className="min-h-screen bg-bg py-10 px-4 sm:px-6 lg:px-8">
@@ -263,11 +357,20 @@ export default function TasksPage() {
           <button
             type="button"
             onClick={handleOpenModal}
-            className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
+            disabled={isPeriodClosed}
+            className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50"
           >
             + Nueva tarea
           </button>
         </div>
+
+        {/* Aviso si el período está cerrado */}
+        {isPeriodClosed && (
+          <div className="rounded-lg border border-line bg-surface-2 p-3 text-sm font-medium text-muted flex items-center justify-between">
+            <span>Período cerrado (solo lectura)</span>
+            <span className="text-xs">No se pueden crear ni completar tareas en períodos históricos</span>
+          </div>
+        )}
 
         {/* Aviso de error o falta de convivientes */}
         {pageError && (
@@ -281,6 +384,80 @@ export default function TasksPage() {
             Se necesitan al menos 2 convivientes en la casa para organizar y crear tareas.
           </div>
         )}
+
+        {/* SECCIÓN: Panel de tareas (RM-12) */}
+        <div className="rounded-2xl border border-line bg-surface p-6 shadow-card space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="font-display text-xl font-semibold text-ink">Panel de tareas</h2>
+              <p className="text-sm text-muted">Reparto y cumplimiento de turnos por período</p>
+            </div>
+
+            {/* Selector de período */}
+            {periods.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="periodSelect" className="text-sm font-semibold text-ink-2 whitespace-nowrap">
+                  Período:
+                </label>
+                <select
+                  id="periodSelect"
+                  value={selectedPeriodId}
+                  onChange={(e) => handlePeriodChange(e.target.value)}
+                  className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25"
+                >
+                  {periods.map((p) => {
+                    const monthStr = p.month !== undefined ? String(p.month).padStart(2, '0') : '--';
+                    const statusStr = p.is_closed ? 'Cerrado' : 'Abierto';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {monthStr}/{p.year} - {statusStr}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {statsLoading && !taskStats ? (
+            <p className="text-sm text-muted">Cargando estadísticas...</p>
+          ) : isEmptyPeriod ? (
+            <div className="rounded-xl border border-line bg-bg p-6 text-center">
+              <p className="text-sm text-muted">Todavía no hay tareas registradas en este período</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <span className="text-sm font-semibold text-ink">
+                  Total de turnos cumplidos: {totalCompleted}
+                </span>
+                {isPeriodClosed && (
+                  <span className="text-xs font-medium text-muted">Período cerrado (solo lectura)</span>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-1">
+                {statsList.map((st) => (
+                  <div key={st.roommateId} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-ink">{st.name}</span>
+                      <span className="text-ink-2 font-medium">
+                        {st.completedCount} turnos ({st.percentage}%)
+                      </span>
+                    </div>
+                    {/* Barra de progreso visual */}
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+                      <div
+                        className="h-full bg-brand transition-all duration-300 rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(0, st.percentage))}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Listado de tareas */}
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-card">
@@ -330,7 +507,7 @@ export default function TasksPage() {
                       <button
                         type="button"
                         onClick={() => handleComplete(task)}
-                        disabled={isCompleting}
+                        disabled={isCompleting || isPeriodClosed}
                         className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 disabled:opacity-50"
                       >
                         {isCompleting ? 'Guardando...' : 'Marcar como hecha'}
