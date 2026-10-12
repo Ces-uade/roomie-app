@@ -2,9 +2,11 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useHouse } from '@/context/HouseContext';
 
 export default function SetupPage() {
   const router = useRouter();
+  const { setActiveHouse, setRoommates } = useHouse();
   const [name, setName] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -72,6 +74,14 @@ export default function SetupPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.message || 'Error al configurar la casa');
+      }
+
+      const data = await res.json().catch(() => null);
+      const createdHouse = data?.house || data;
+      if (createdHouse?.id) {
+        localStorage.setItem('activeHouseId', createdHouse.id);
+        setActiveHouse({ ...createdHouse, periods: data?.period ? [data.period] : [], roommates: [] });
+        setRoommates([]);
       }
 
       router.push('/dashboard');
