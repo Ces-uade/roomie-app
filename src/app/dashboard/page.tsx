@@ -25,6 +25,42 @@ export default function DashboardPage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
 
+  const [invite, setInvite] = useState<{ code: string; link: string } | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+
+  const handleShareInvite = async () => {
+    if (!house?.id) return;
+    setInviteLoading(true);
+    setInviteError(null);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/${house.id}/invite`,
+        { method: 'POST' }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.code) {
+        throw new Error(data?.message || data?.error || 'No se pudo generar la invitación');
+      }
+      setInvite({ code: data.code, link: `${window.location.origin}/join?code=${data.code}` });
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Error inesperado');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const copyText = async (text: string, kind: 'code' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setInviteError('No se pudo copiar al portapapeles');
+    }
+  };
+
   const fetchRoommates = async (houseId: string) => {
     try {
       const res = await fetch(
@@ -204,7 +240,7 @@ export default function DashboardPage() {
               href="/select-house"
               className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
             >
-              Cambiar casa
+              Cambiar de casa
             </Link>
             <Link
               href="/balances"
@@ -276,9 +312,48 @@ export default function DashboardPage() {
 
           {/* Lista de convivientes */}
           <div className="rounded-2xl border border-line bg-surface p-6 shadow-card">
-            <h2 className="font-display text-xl font-semibold text-ink">
-              Convivientes ({roommates.length})
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-xl font-semibold text-ink">
+                Convivientes ({roommates.length})
+              </h2>
+              <button
+                type="button"
+                onClick={handleShareInvite}
+                disabled={inviteLoading}
+                className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-50"
+              >
+                {inviteLoading ? 'Generando...' : 'Compartir invitación'}
+              </button>
+            </div>
+            {inviteError && <p className="mt-3 text-sm font-medium text-neg">{inviteError}</p>}
+            {invite && (
+              <div className="mt-4 space-y-3 rounded-lg border border-line bg-bg p-4 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-ink-2">
+                    Código: <strong className="text-ink">{invite.code}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(invite.code, 'code')}
+                    className="rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-brand-ink hover:brightness-110"
+                  >
+                    {copied === 'code' ? 'Copiado' : 'Copiar código'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="break-all text-ink-2">
+                    Enlace: <strong className="text-ink">{invite.link}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(invite.link, 'link')}
+                    className="shrink-0 rounded-lg bg-brand px-3 py-1 text-xs font-semibold text-brand-ink hover:brightness-110"
+                  >
+                    {copied === 'link' ? 'Copiado' : 'Copiar enlace'}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mt-4">
               {roommates.length === 0 ? (
                 <p className="text-sm text-muted">No hay convivientes registrados aún.</p>

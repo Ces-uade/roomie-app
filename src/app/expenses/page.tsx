@@ -137,6 +137,12 @@ export default function ExpensesPage() {
               >
                 ← Volver al Dashboard
               </Link>
+              <Link
+                href="/select-house"
+                className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
+              >
+                Cambiar de casa
+              </Link>
             </div>
             <p className="mt-1 text-sm text-muted">
               Gastos registrados en el período activo

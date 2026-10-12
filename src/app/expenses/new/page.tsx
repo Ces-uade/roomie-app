@@ -240,12 +240,20 @@ function ExpenseForm() {
       <div className="mx-auto max-w-lg rounded-2xl border border-line bg-surface p-8 shadow-card">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-display text-2xl font-semibold text-ink">Nuevo Gasto</h1>
-          <Link
-            href="/dashboard"
-            className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
-          >
-            Volver al Dashboard
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard"
+              className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
+            >
+              Volver al Dashboard
+            </Link>
+            <Link
+              href="/select-house"
+              className="text-sm font-semibold text-brand underline-offset-4 hover:underline"
+            >
+              Cambiar de casa
+            </Link>
+          </div>
         </div>
 
         {effectiveRoommates.length < 2 ? (

@@ -121,6 +121,9 @@ export default function BalancesPage() {
             <Link href="/dashboard" className="text-sm font-semibold text-brand underline-offset-4 hover:underline">
               ← Dashboard
             </Link>
+            <Link href="/select-house" className="text-sm font-semibold text-brand underline-offset-4 hover:underline">
+              Cambiar de casa
+            </Link>
           </div>
           <p className="mt-1 text-sm text-muted">Estado financiero del período activo</p>
         </div>

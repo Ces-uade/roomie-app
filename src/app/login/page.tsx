@@ -1,11 +1,21 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite') || params.get('code');
+    if (invite) localStorage.setItem('pendingInviteCode', invite);
+    if (localStorage.getItem('pendingInviteCode')) {
+      setInfo('Inicia sesión o crea tu cuenta para unirte a la casa.');
+    }
+  }, []);
+  const [info, setInfo] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +43,23 @@ export default function LoginPage() {
       if (userId) {
         localStorage.setItem('userId', userId);
       }
+      const userEmail = data?.email || data?.user?.email || email;
+      const userName = data?.name || data?.user?.name || '';
+      localStorage.setItem('userEmail', userEmail);
+      localStorage.setItem('userName', userName);
 
-      router.push('/select-house');
+      const pending = localStorage.getItem('pendingInviteCode');
+      if (pending) {
+        router.push(`/select-house?code=${encodeURIComponent(pending)}`);
+        return;
+      }
+
+      const housesRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`
+      ).catch(() => null);
+      const housesData = housesRes && housesRes.ok ? await housesRes.json().catch(() => null) : null;
+      const housesList = Array.isArray(housesData) ? housesData : housesData ? [housesData] : [];
+      router.push(housesRes && housesRes.ok && housesList.length === 0 ? '/setup' : '/select-house');
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -52,6 +77,9 @@ export default function LoginPage() {
         <div>
           <h2 className="text-center font-display text-3xl font-semibold tracking-tight text-ink">Iniciar sesión</h2>
         </div>
+        {info && (
+          <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-ink-2 text-center">{info}</p>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
