@@ -405,12 +405,16 @@ export default function TasksPage() {
                   onChange={(e) => handlePeriodChange(e.target.value)}
                   className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25"
                 >
-                  {periods.map((p) => {
+                  {periods.map((p, idx) => {
                     const monthStr = p.month !== undefined ? String(p.month).padStart(2, '0') : '--';
                     const statusStr = p.is_closed ? 'Cerrado' : 'Abierto';
+                    const isDuplicate = periods.filter(
+                      (other) => other.month === p.month && other.year === p.year && other.is_closed === p.is_closed
+                    ).length > 1;
+                    const suffix = isDuplicate && p.id ? ` (#${p.id.slice(0, 4)})` : '';
                     return (
-                      <option key={p.id} value={p.id}>
-                        {monthStr}/{p.year} - {statusStr}
+                      <option key={p.id || idx} value={p.id}>
+                        {monthStr}/{p.year} - {statusStr}{suffix}
                       </option>
                     );
                   })}

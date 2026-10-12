@@ -168,9 +168,11 @@ export default function DashboardPage() {
   };
 
   const openCloseModal = () => {
-    if (house?.periods?.[0]?.month && house?.periods?.[0]?.year) {
-      const curM = house.periods[0].month!;
-      const curY = house.periods[0].year!;
+    const activePeriod =
+      house?.periods?.find((p: any) => !p.is_closed) || house?.periods?.[0];
+    if (activePeriod?.month && activePeriod?.year) {
+      const curM = activePeriod.month;
+      const curY = activePeriod.year;
       setNewMonth((curM === 12 ? 1 : curM + 1).toString());
       setNewYear((curM === 12 ? curY + 1 : curY).toString());
     }
@@ -182,7 +184,9 @@ export default function DashboardPage() {
     e.preventDefault();
     setCloseError(null);
 
-    const periodId = house?.periods?.[0]?.id;
+    const activePeriod =
+      house?.periods?.find((p: any) => !p.is_closed) || house?.periods?.[0];
+    const periodId = activePeriod?.id;
     if (!periodId || !house?.id) {
       setCloseError('No se encontró el período activo');
       return;
@@ -233,7 +237,24 @@ export default function DashboardPage() {
             <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
               {house?.name}
             </h1>
-            <p className="mt-1 text-sm text-muted">Panel principal y gestión de convivientes</p>
+            <div className="mt-1 flex items-center gap-2 text-sm text-muted">
+              <span>Panel principal y gestión de convivientes</span>
+              {(() => {
+                const activePeriod =
+                  house?.periods?.find((p: any) => !p.is_closed) || house?.periods?.[0];
+                if (activePeriod?.month && activePeriod?.year) {
+                  return (
+                    <>
+                      <span>•</span>
+                      <span className="font-medium text-ink-2">
+                        Período actual: {String(activePeriod.month).padStart(2, '0')}/{activePeriod.year}
+                      </span>
+                    </>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
