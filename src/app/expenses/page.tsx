@@ -19,6 +19,7 @@ interface Expense {
   concept: string;
   amount: number;
   date: string;
+  category?: string;
   roommates?: { name: string } | { name: string }[];
   expense_splits?: Split[];
 }
@@ -36,6 +37,7 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [expandedExpenses, setExpandedExpenses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -84,7 +86,13 @@ export default function ExpensesPage() {
         }
 
         const expensesData = await expensesRes.json();
-        setExpenses(Array.isArray(expensesData) ? expensesData : []);
+        const loaded = Array.isArray(expensesData) ? expensesData : [];
+        setExpenses(
+          loaded.map((exp: Expense) => ({
+            ...exp,
+            category: exp.category || 'Otro',
+          }))
+        );
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -115,6 +123,11 @@ export default function ExpensesPage() {
   };
 
   const totalPeriod = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+
+  const filteredExpenses =
+    selectedCategory === 'Todas'
+      ? expenses
+      : expenses.filter((exp) => (exp.category || 'Otro') === selectedCategory);
 
   if (loading) {
     return (
@@ -171,11 +184,34 @@ export default function ExpensesPage() {
           </p>
         </div>
 
+        {/* Filtro por categoría */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span className="text-sm font-semibold text-ink-2">Filtrar por categoría:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {['Todas', 'Fijo', 'Individual', 'Otro'].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand ${
+                  selectedCategory === cat
+                    ? 'bg-brand text-brand-ink'
+                    : 'border border-line bg-surface text-ink-2 hover:bg-surface-2'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Lista de gastos */}
-        {expenses.length === 0 ? (
+        {filteredExpenses.length === 0 ? (
           <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-soft">
             <p className="text-base text-ink-2">
-              Todavía no hay gastos registrados en este período
+              {expenses.length === 0
+                ? 'Todavía no hay gastos registrados en este período'
+                : `No hay gastos registrados en la categoría "${selectedCategory}"`}
             </p>
             <p className="mt-2 text-sm font-semibold text-ink">
               Total: $0.00
@@ -183,9 +219,10 @@ export default function ExpensesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {expenses.map((expense) => {
+            {filteredExpenses.map((expense) => {
               const isExpanded = !!expandedExpenses[expense.id];
               const payerName = getRoommateName(expense.roommates, expense.paid_by);
+              const expenseCategory = expense.category || 'Otro';
 
               return (
                 <div
@@ -197,6 +234,9 @@ export default function ExpensesPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-lg font-semibold text-ink">
                           {expense.concept}
+                        </span>
+                        <span className="rounded-md bg-brand/10 border border-brand/20 px-2 py-0.5 text-xs font-semibold text-brand">
+                          {expenseCategory}
                         </span>
                         <span className="text-xs text-muted bg-surface-2 rounded-md px-2 py-0.5">
                           {expense.date}

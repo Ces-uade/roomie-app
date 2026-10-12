@@ -46,6 +46,7 @@ function ExpenseForm() {
 
   const [concept, setConcept] = useState('');
   const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [participants, setParticipants] = useState<string[]>([]);
@@ -170,6 +171,11 @@ function ExpenseForm() {
       }
     }
 
+    if (!category || !['Fijo', 'Individual', 'Otro'].includes(category)) {
+      setError('Debes seleccionar una categoría para el gasto');
+      return;
+    }
+
     if (participants.length === 0) {
       setError('Seleccioná al menos un conviviente para dividir el gasto');
       return;
@@ -199,6 +205,7 @@ function ExpenseForm() {
           amount: parsedAmount,
           date,
           participants,
+          category,
         }),
       });
 
@@ -294,6 +301,27 @@ function ExpenseForm() {
                 className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
                 placeholder="0.00"
               />
+            </div>
+
+            <div>
+              <label htmlFor="category" className="block text-sm font-semibold text-ink-2">
+                Categoría
+              </label>
+              <select
+                id="category"
+                name="category"
+                required
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-ink transition-colors focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+              >
+                <option value="" disabled>
+                  Seleccionar categoría...
+                </option>
+                <option value="Fijo">Fijo</option>
+                <option value="Individual">Individual</option>
+                <option value="Otro">Otro</option>
+              </select>
             </div>
 
             <div>
