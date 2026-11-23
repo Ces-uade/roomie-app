@@ -9,7 +9,7 @@ interface Split {
   id: string;
   roommate_id: string;
   amount: number;
-  roommates?: { name: string } | { name: string }[];
+  roommates?: { name: string; is_active?: boolean } | { name: string; is_active?: boolean }[];
 }
 
 interface Expense {
@@ -20,7 +20,7 @@ interface Expense {
   amount: number;
   date: string;
   category?: string;
-  roommates?: { name: string } | { name: string }[];
+  roommates?: { name: string; is_active?: boolean } | { name: string; is_active?: boolean }[];
   expense_splits?: Split[];
 }
 
@@ -39,6 +39,7 @@ export default function ExpensesPage() {
   const {
     activeHouse,
     periods: contextPeriods,
+    roommates: contextRoommates,
     selectedPeriodId: contextPeriodId,
     setSelectedPeriodId: setContextPeriodId,
   } = useHouse();
@@ -49,10 +50,29 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [houseRoommates, setHouseRoommates] = useState<{ id: string; name: string; is_active?: boolean }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [expandedExpenses, setExpandedExpenses] = useState<Record<string, boolean>>({});
   const [periods, setPeriods] = useState<Period[]>(contextPeriods || []);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>(contextPeriodId || '');
+
+  // Estado para modal Editar Gasto
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editConcept, setEditConcept] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editPaidBy, setEditPaidBy] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editCategory, setEditCategory] = useState('Otro');
+  const [editParticipants, setEditParticipants] = useState<string[]>([]);
+  const [editAvailableRoommates, setEditAvailableRoommates] = useState<{ id: string; name: string; is_active?: boolean }[]>([]);
+  const [hasInactiveRoommate, setHasInactiveRoommate] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Estado para modal Eliminar Gasto
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   useEffect(() => {
     if (contextPeriods && contextPeriods.length > 0) {
@@ -130,6 +150,16 @@ export default function ExpensesPage() {
           return;
         }
 
+        // Cargar roommates de la casa
+        const rmRes = await fetch(`${API}/api/roommates?houseId=${houseData.id}`).catch(() => null);
+        if (rmRes && rmRes.ok) {
+          const rmData = await rmRes.json().catch(() => null);
+          const rList = Array.isArray(rmData) ? rmData : rmData?.roommates || [];
+          setHouseRoommates(rList);
+        } else if (Array.isArray(houseData.roommates)) {
+          setHouseRoommates(houseData.roommates);
+        }
+
         let allPeriods: Period[] = [];
         const periodsRes = await fetch(`${API}/api/periods?houseId=${houseData.id}`).catch(() => null);
         if (periodsRes && periodsRes.ok) {
@@ -193,6 +223,199 @@ export default function ExpensesPage() {
       return roommatesData[0]?.name || fallbackId || 'Desconocido';
     }
     return roommatesData.name || fallbackId || 'Desconocido';
+  };
+
+  // Abrir modal de edición
+  const handleOpenEdit = (expense: Expense) => {
+    setEditingExpense(expense);
+    setEditConcept(expense.concept);
+    setEditAmount(String(expense.amount));
+    setEditPaidBy(expense.paid_by);
+    setEditDate(expense.date ? expense.date.split('T')[0] : '');
+    setEditCategory(expense.category || 'Otro');
+    setEditError(null);
+
+    // Splits participantes
+    const splitParticipantIds = (expense.expense_splits || []).map((s) => s.roommate_id);
+    setEditParticipants(splitParticipantIds.length > 0 ? splitParticipantIds : [expense.paid_by]);
+
+    // Detectar convivientes inactivos (Criterio 6)
+    const payerInactive = Array.isArray(expense.roommates)
+      ? expense.roommates[0]?.is_active === false
+      : expense.roommates?.is_active === false;
+
+    const splitsInactive = (expense.expense_splits || []).some((s) =>
+      Array.isArray(s.roommates) ? s.roommates[0]?.is_active === false : s.roommates?.is_active === false
+    );
+
+    const isInactive = payerInactive || splitsInactive;
+    setHasInactiveRoommate(isInactive);
+
+    // Armar lista de convivientes disponibles para el modal: activos + inactivos de este gasto
+    const baseList = houseRoommates.length > 0 ? [...houseRoommates] : (contextRoommates ? [...contextRoommates] : []);
+    const knownIds = new Set(baseList.map((r) => r.id));
+
+    // Agregar payer si no estaba
+    if (!knownIds.has(expense.paid_by)) {
+      baseList.push({
+        id: expense.paid_by,
+        name: getRoommateName(expense.roommates, expense.paid_by),
+        is_active: false,
+      });
+      knownIds.add(expense.paid_by);
+    }
+
+    // Agregar participantes de splits si no estaban
+    for (const split of expense.expense_splits || []) {
+      if (!knownIds.has(split.roommate_id)) {
+        baseList.push({
+          id: split.roommate_id,
+          name: getRoommateName(split.roommates, split.roommate_id),
+          is_active: false,
+        });
+        knownIds.add(split.roommate_id);
+      }
+    }
+
+    setEditAvailableRoommates(baseList);
+  };
+
+  const handleEditParticipantToggle = (id: string) => {
+    if (hasInactiveRoommate) return;
+    setEditParticipants((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense) return;
+    setEditError(null);
+
+    const trimmedConcept = editConcept.trim();
+    if (trimmedConcept.length === 0 || trimmedConcept.length > 100) {
+      setEditError('El concepto debe tener entre 1 y 100 caracteres');
+      return;
+    }
+
+    if (!editDate) {
+      setEditError('La fecha es obligatoria');
+      return;
+    }
+
+    // Validar fecha dentro del período abierto
+    if (selectedPeriod?.month && selectedPeriod?.year) {
+      const dateParts = editDate.split('-');
+      const expenseYear = parseInt(dateParts[0], 10);
+      const expenseMonth = parseInt(dateParts[1], 10);
+      if (
+        isNaN(expenseYear) ||
+        isNaN(expenseMonth) ||
+        expenseYear !== selectedPeriod.year ||
+        expenseMonth !== selectedPeriod.month
+      ) {
+        setEditError('La fecha del gasto debe pertenecer al período abierto');
+        return;
+      }
+    }
+
+    if (!editCategory || !['Fijo', 'Individual', 'Otro'].includes(editCategory)) {
+      setEditError('Debes seleccionar una categoría válida');
+      return;
+    }
+
+    let parsedAmount = Number(editingExpense.amount);
+    let finalPaidBy = editingExpense.paid_by;
+    let finalParticipants = (editingExpense.expense_splits || []).map((s) => s.roommate_id);
+
+    if (!hasInactiveRoommate) {
+      parsedAmount = parseFloat(editAmount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        setEditError('El monto debe ser mayor a 0');
+        return;
+      }
+      // Validar hasta 2 decimales
+      if (!/^\d+(\.\d{1,2})?$/.test(editAmount.trim())) {
+        setEditError('El monto puede tener hasta 2 decimales');
+        return;
+      }
+
+      if (!editPaidBy) {
+        setEditError('Debes seleccionar quién pagó el gasto');
+        return;
+      }
+      finalPaidBy = editPaidBy;
+
+      if (editParticipants.length === 0) {
+        setEditError('Debes seleccionar al menos un participante');
+        return;
+      }
+      finalParticipants = editParticipants;
+    }
+
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`${API}/api/expenses/${editingExpense.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          concept: trimmedConcept,
+          amount: parsedAmount,
+          paidBy: finalPaidBy,
+          date: editDate,
+          category: editCategory,
+          participants: finalParticipants,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEditError(data?.error || data?.message || 'Error al actualizar el gasto');
+        return;
+      }
+
+      setEditingExpense(null);
+      if (selectedPeriodId) {
+        await loadExpenses(selectedPeriodId);
+      }
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Abrir modal de eliminación
+  const handleOpenDelete = (expense: Expense) => {
+    setDeletingExpense(expense);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingExpense) return;
+    setDeleteSubmitting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`${API}/api/expenses/${deletingExpense.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setDeleteError(data?.error || data?.message || 'Error al eliminar el gasto');
+        return;
+      }
+
+      setDeletingExpense(null);
+      if (selectedPeriodId) {
+        await loadExpenses(selectedPeriodId);
+      }
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    } finally {
+      setDeleteSubmitting(false);
+    }
   };
 
   const totalPeriod = expenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
@@ -352,7 +575,7 @@ export default function ExpensesPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
                       <span className="font-display text-xl font-semibold text-ink">
                         ${Number(expense.amount).toFixed(2)}
                       </span>
@@ -363,6 +586,26 @@ export default function ExpensesPage() {
                       >
                         {isExpanded ? 'Ocultar reparto' : 'Ver reparto'}
                       </button>
+
+                      {/* Botones Editar y Eliminar en período abierto (Criterio 1) */}
+                      {!isClosed && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(expense)}
+                            className="rounded-lg border border-brand/40 bg-surface px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/10 transition-colors"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(expense)}
+                            className="rounded-lg border border-neg/40 bg-surface px-3 py-1.5 text-xs font-semibold text-neg hover:bg-neg-soft transition-colors"
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -403,6 +646,197 @@ export default function ExpensesPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Modal Editar Gasto */}
+        {editingExpense && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+            <div className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-card space-y-4 my-8">
+              <h3 className="font-display text-lg font-semibold text-ink">Editar Gasto</h3>
+
+              {hasInactiveRoommate && (
+                <div className="rounded-lg border border-warn/30 bg-warn-soft p-3 text-sm text-warn">
+                  Este gasto incluye un conviviente eliminado. Solo podés modificar el concepto, la fecha y la categoría.
+                </div>
+              )}
+
+              {editError && (
+                <div className="rounded-lg border border-neg/20 bg-neg-soft p-3 text-sm font-medium text-neg">
+                  {editError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div>
+                  <label htmlFor="editConcept" className="block text-sm font-semibold text-ink-2">
+                    Concepto
+                  </label>
+                  <input
+                    id="editConcept"
+                    type="text"
+                    required
+                    value={editConcept}
+                    onChange={(e) => setEditConcept(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="editAmount" className="block text-sm font-semibold text-ink-2">
+                    Monto
+                  </label>
+                  <input
+                    id="editAmount"
+                    type="number"
+                    step="0.01"
+                    required
+                    disabled={hasInactiveRoommate}
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink disabled:opacity-50 disabled:bg-surface-2 focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="editPaidBy" className="block text-sm font-semibold text-ink-2">
+                    Pagado por
+                  </label>
+                  <select
+                    id="editPaidBy"
+                    disabled={hasInactiveRoommate}
+                    value={editPaidBy}
+                    onChange={(e) => setEditPaidBy(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink disabled:opacity-50 disabled:bg-surface-2 focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  >
+                    {editAvailableRoommates.map((rm) => (
+                      <option key={rm.id} value={rm.id}>
+                        {rm.name} {rm.is_active === false ? '(Eliminado)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="editDate" className="block text-sm font-semibold text-ink-2">
+                    Fecha
+                  </label>
+                  <input
+                    id="editDate"
+                    type="date"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="editCategory" className="block text-sm font-semibold text-ink-2">
+                    Categoría
+                  </label>
+                  <select
+                    id="editCategory"
+                    required
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  >
+                    <option value="Fijo">Fijo</option>
+                    <option value="Individual">Individual</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <span className="block text-sm font-semibold text-ink-2 mb-2">
+                    Participantes
+                  </span>
+                  <div className="space-y-2 rounded-lg border border-line bg-bg p-3 max-h-40 overflow-y-auto">
+                    {editAvailableRoommates.map((rm) => {
+                      const checked = editParticipants.includes(rm.id);
+                      return (
+                        <label
+                          key={rm.id}
+                          className={`flex items-center gap-2 text-sm text-ink ${
+                            hasInactiveRoommate ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={hasInactiveRoommate}
+                            checked={checked}
+                            onChange={() => handleEditParticipantToggle(rm.id)}
+                            className="rounded border-line text-brand focus:ring-brand"
+                          />
+                          <span>
+                            {rm.name} {rm.is_active === false ? '(Eliminado)' : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-line">
+                  <button
+                    type="button"
+                    onClick={() => setEditingExpense(null)}
+                    disabled={editSubmitting}
+                    className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-2 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 disabled:opacity-50"
+                  >
+                    {editSubmitting ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Eliminar Gasto */}
+        {deletingExpense && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-card space-y-4">
+              <h3 className="font-display text-lg font-semibold text-ink">Eliminar Gasto</h3>
+
+              <p className="text-sm text-ink-2">
+                ¿Estás seguro de que deseás eliminar el gasto{' '}
+                <strong className="text-ink">&quot;{deletingExpense.concept}&quot;</strong> por un monto de{' '}
+                <strong className="text-ink">${Number(deletingExpense.amount).toFixed(2)}</strong>?
+              </p>
+
+              {deleteError && (
+                <div className="rounded-lg border border-neg/20 bg-neg-soft p-3 text-sm font-medium text-neg">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setDeletingExpense(null)}
+                  disabled={deleteSubmitting}
+                  className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-2 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={deleteSubmitting}
+                  className="rounded-lg bg-neg px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {deleteSubmitting ? 'Eliminando...' : 'Confirmar eliminación'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
