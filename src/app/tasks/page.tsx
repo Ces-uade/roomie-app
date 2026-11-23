@@ -79,6 +79,7 @@ export default function TasksPage() {
   const router = useRouter();
   const {
     periods: contextPeriods,
+    roommates: contextRoommates,
     selectedPeriodId: contextPeriodId,
     setSelectedPeriodId: setContextPeriodId,
   } = useHouse();
@@ -101,6 +102,13 @@ export default function TasksPage() {
   }, [contextPeriods]);
 
   useEffect(() => {
+    if (contextRoommates && contextRoommates.length > 0) {
+      const activeList = contextRoommates.filter((r) => r.is_active !== false);
+      setRoommates(activeList);
+    }
+  }, [contextRoommates]);
+
+  useEffect(() => {
     if (contextPeriodId && contextPeriodId !== selectedPeriodId) {
       setSelectedPeriodId(contextPeriodId);
       if (house?.id) {
@@ -112,14 +120,20 @@ export default function TasksPage() {
   // Acciones en tareas
   const [completingId, setCompletingId] = useState<string | null>(null);
 
-  // Modal nueva tarea
+  // Modal nueva / editar tarea
   const [showModal, setShowModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskName, setTaskName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [frequency, setFrequency] = useState('semanal');
   const [selectedRoommateIds, setSelectedRoommateIds] = useState<string[]>([]);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [submittingTask, setSubmittingTask] = useState(false);
+
+  // Modal eliminar tarea
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingSubmitting, setDeletingSubmitting] = useState(false);
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
   const isPeriodClosed = selectedPeriod?.is_closed ?? false;
@@ -209,9 +223,10 @@ export default function TasksPage() {
         let rmList: Roommate[] = [];
         if (rmRes && rmRes.ok) {
           const rmData = await rmRes.json().catch(() => null);
-          rmList = Array.isArray(rmData) ? rmData : rmData?.roommates || [];
+          const raw = Array.isArray(rmData) ? rmData : rmData?.roommates || [];
+          rmList = raw.filter((r: Roommate) => r.is_active !== false);
         } else if (Array.isArray(houseData.roommates)) {
-          rmList = houseData.roommates;
+          rmList = houseData.roommates.filter((r) => r.is_active !== false);
         }
         setRoommates(rmList);
 
@@ -258,6 +273,7 @@ export default function TasksPage() {
       return;
     }
     setPageError(null);
+    setEditingTask(null);
     setTaskName('');
     setNameError(null);
     setFrequency('semanal');
@@ -266,8 +282,24 @@ export default function TasksPage() {
     setShowModal(true);
   };
 
+  const handleOpenEdit = (task: Task) => {
+    if (isPeriodClosed) return;
+    setPageError(null);
+    setEditingTask(task);
+    setTaskName(task.name);
+    setNameError(null);
+    setFrequency(task.frequency);
+    // Filtrar para que solo preseleccione IDs de roommates activos
+    const activeIdsSet = new Set(roommates.map((r) => r.id));
+    const preselected = (task.roommate_ids || []).filter((id) => activeIdsSet.has(id));
+    setSelectedRoommateIds(preselected);
+    setModalError(null);
+    setShowModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
+    setEditingTask(null);
     setTaskName('');
     setNameError(null);
     setFrequency('semanal');
@@ -281,7 +313,7 @@ export default function TasksPage() {
     );
   };
 
-  const handleCreateTask = async (e: FormEvent) => {
+  const handleSaveTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!house?.id || isPeriodClosed) return;
 
@@ -304,36 +336,100 @@ export default function TasksPage() {
       return;
     }
 
-    setCreating(true);
+    setSubmittingTask(true);
     setModalError(null);
 
     try {
-      const res = await fetch(`${API}/api/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          houseId: house.id,
-          name: trimmed,
-          frequency,
-          roommateIds: selectedRoommateIds,
-        }),
-      });
+      if (editingTask) {
+        // Editar tarea (PUT)
+        const res = await fetch(`${API}/api/tasks/${editingTask.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: trimmed,
+            frequency,
+            roommateIds: selectedRoommateIds,
+          }),
+        });
 
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.message || data?.error || 'Error al actualizar la tarea');
+        }
+
+        await fetchTasks(house.id);
+        handleCloseModal();
+        if (selectedPeriodId) {
+          fetchStats(house.id, selectedPeriodId);
+        }
+      } else {
+        // Crear tarea (POST)
+        const res = await fetch(`${API}/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            houseId: house.id,
+            name: trimmed,
+            frequency,
+            roommateIds: selectedRoommateIds,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.message || data?.error || 'Error al crear la tarea');
+        }
+
+        setTasks((prev) => [...prev, data]);
+        handleCloseModal();
+        if (selectedPeriodId) {
+          fetchStats(house.id, selectedPeriodId);
+        }
+      }
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Error al guardar la tarea');
+    } finally {
+      setSubmittingTask(false);
+    }
+  };
+
+  // Abrir modal eliminar tarea
+  const handleOpenDelete = (task: Task) => {
+    if (isPeriodClosed) return;
+    setDeletingTask(task);
+    setDeleteError(null);
+  };
+
+  const handleCloseDelete = () => {
+    if (deletingSubmitting) return;
+    setDeletingTask(null);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTask || !house?.id) return;
+    setDeletingSubmitting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`${API}/api/tasks/${deletingTask.id}`, {
+        method: 'DELETE',
+      });
       const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error(data?.message || data?.error || 'Error al crear la tarea');
+        throw new Error(data?.message || data?.error || 'Error al eliminar la tarea');
       }
 
-      setTasks((prev) => [...prev, data]);
-      handleCloseModal();
-
+      setDeletingTask(null);
+      await fetchTasks(house.id);
       if (selectedPeriodId) {
         fetchStats(house.id, selectedPeriodId);
       }
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Error al crear la tarea');
+      setDeleteError(err instanceof Error ? err.message : 'Error al eliminar la tarea');
     } finally {
-      setCreating(false);
+      setDeletingSubmitting(false);
     }
   };
 
@@ -553,7 +649,7 @@ export default function TasksPage() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => handleComplete(task)}
@@ -562,6 +658,25 @@ export default function TasksPage() {
                       >
                         {isCompleting ? 'Guardando...' : 'Marcar como hecha'}
                       </button>
+
+                      {!isPeriodClosed && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(task)}
+                            className="rounded-lg border border-brand/40 bg-surface px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 transition-colors"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(task)}
+                            className="rounded-lg border border-neg/40 bg-surface px-3 py-2 text-sm font-semibold text-neg hover:bg-neg-soft transition-colors"
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -571,13 +686,15 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Modal Nueva Tarea */}
+      {/* Modal Nueva / Editar Tarea */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-card space-y-5">
-            <h2 className="font-display text-xl font-semibold text-ink">Nueva tarea</h2>
+            <h2 className="font-display text-xl font-semibold text-ink">
+              {editingTask ? 'Editar tarea' : 'Nueva tarea'}
+            </h2>
 
-            <form onSubmit={handleCreateTask} className="space-y-4">
+            <form onSubmit={handleSaveTask} className="space-y-4">
               <div>
                 <label htmlFor="taskName" className="block text-sm font-semibold text-ink-2">
                   Nombre de la tarea
@@ -658,20 +775,66 @@ export default function TasksPage() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  disabled={creating}
+                  disabled={submittingTask}
                   className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-2 transition disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
+                  disabled={submittingTask}
                   className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 disabled:opacity-50"
                 >
-                  {creating ? 'Guardando...' : 'Crear tarea'}
+                  {submittingTask
+                    ? 'Guardando...'
+                    : editingTask
+                    ? 'Guardar cambios'
+                    : 'Crear tarea'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminación de Tarea */}
+      {deletingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-card space-y-4">
+            <h3 className="font-display text-lg font-semibold text-ink">Eliminar tarea</h3>
+
+            <p className="text-sm text-ink-2">
+              ¿Estás seguro de que deseás eliminar la tarea{' '}
+              <strong className="text-ink">&quot;{deletingTask.name}&quot;</strong>?
+            </p>
+            <p className="text-xs text-muted">
+              Los turnos ya cumplidos se conservarán en el panel de estadísticas.
+            </p>
+
+            {deleteError && (
+              <div className="rounded-lg border border-neg/20 bg-neg-soft p-3 text-sm font-medium text-neg">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-line">
+              <button
+                type="button"
+                onClick={handleCloseDelete}
+                disabled={deletingSubmitting}
+                className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-2 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deletingSubmitting}
+                className="rounded-lg bg-neg px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+              >
+                {deletingSubmitting ? 'Eliminando...' : 'Confirmar eliminación'}
+              </button>
+            </div>
           </div>
         </div>
       )}
