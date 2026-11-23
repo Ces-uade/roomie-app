@@ -43,6 +43,8 @@ interface HouseContextValue {
   selectedPeriodId: string;
   selectedPeriod: Period | null;
   periodsReady: boolean;
+  houseMissing: boolean;
+  setHouseMissing: (missing: boolean) => void;
   setSelectedPeriodId: (id: string) => void;
   refreshHouseData: (selectOpenPeriod?: boolean) => Promise<void>;
   clearSession: () => void;
@@ -59,6 +61,8 @@ const HouseContext = createContext<HouseContextValue>({
   selectedPeriodId: '',
   selectedPeriod: null,
   periodsReady: false,
+  houseMissing: false,
+  setHouseMissing: () => {},
   setSelectedPeriodId: () => {},
   refreshHouseData: async () => {},
   clearSession: () => {},
@@ -78,6 +82,7 @@ export function HouseProvider({ children }: { children: ReactNode }) {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [selectedPeriodId, setSelectedPeriodIdState] = useState('');
   const [periodsReady, setPeriodsReady] = useState(false);
+  const [houseMissing, setHouseMissing] = useState(false);
 
   const activeHouseId = activeHouse?.id;
 
@@ -149,7 +154,13 @@ export function HouseProvider({ children }: { children: ReactNode }) {
             setRoommatesState(rmList);
           }
         } else {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('activeHouseId');
+            localStorage.removeItem('activePeriodId');
+          }
+          setActiveHouseState(null);
           setPeriodsReady(true);
+          setHouseMissing(true);
         }
       })
       .catch(() => setPeriodsReady(true));
@@ -224,6 +235,7 @@ export function HouseProvider({ children }: { children: ReactNode }) {
     setPeriods([]);
     setSelectedPeriodIdState('');
     setPeriodsReady(true);
+    setHouseMissing(false);
   }, []);
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId) || null;
@@ -241,6 +253,8 @@ export function HouseProvider({ children }: { children: ReactNode }) {
         selectedPeriodId,
         selectedPeriod,
         periodsReady,
+        houseMissing,
+        setHouseMissing,
         setSelectedPeriodId,
         refreshHouseData,
         clearSession,

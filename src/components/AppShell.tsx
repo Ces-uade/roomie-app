@@ -27,6 +27,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
     selectedPeriod,
     refreshHouseData,
     clearSession,
+    houseMissing,
+    setHouseMissing,
   } = useHouse();
 
   const isPublic = PUBLIC_ROUTES.includes(pathname);
@@ -44,6 +46,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
       setAuthorized(false);
       return;
     }
+    if (houseMissing) {
+      setAuthorized(false);
+      setHouseMissing(false);
+      sessionStorage.setItem('houseRemovedNotice', 'Esta casa ya no existe');
+      router.replace('/select-house');
+      return;
+    }
     if (!localStorage.getItem('userId')) {
       setAuthorized(false);
       router.replace('/login');
@@ -55,7 +64,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       return;
     }
     setAuthorized(true);
-  }, [pathname, isPublic, router]);
+  }, [pathname, isPublic, router, houseMissing, setHouseMissing]);
 
   useEffect(() => {
     setDrawerOpen(false);
