@@ -28,8 +28,13 @@ interface PaymentItem {
 
 interface Period {
   id: string;
+  month?: number;
+  year?: number;
   is_closed?: boolean;
+  created_at?: string;
 }
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function BalancesPage() {
   const router = useRouter();
@@ -38,6 +43,44 @@ export default function BalancesPage() {
   const [balances, setBalances] = useState<BalanceItem[]>([]);
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [houseId, setHouseId] = useState<string | null>(null);
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+
+  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+  const isClosed = selectedPeriod?.is_closed === true;
+
+  const loadPeriodData = async (hId: string, pId: string) => {
+    try {
+      const [balancesRes, paymentsRes] = await Promise.all([
+        fetch(`${API}/api/balances?periodId=${pId}&houseId=${hId}`),
+        fetch(`${API}/api/payments?periodId=${pId}`),
+      ]);
+
+      if (balancesRes.ok) {
+        const bData = await balancesRes.json();
+        setBalances(Array.isArray(bData?.balances) ? bData.balances : []);
+        setDebts(Array.isArray(bData?.debts) ? bData.debts : []);
+      } else {
+        setBalances([]);
+        setDebts([]);
+      }
+
+      if (paymentsRes.ok) {
+        const pData = await paymentsRes.json();
+        setPayments(Array.isArray(pData) ? pData : []);
+      } else {
+        setPayments([]);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    }
+  };
+
+  const handlePeriodChange = async (pId: string) => {
+    setSelectedPeriodId(pId);
+    if (houseId) await loadPeriodData(houseId, pId);
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -48,7 +91,7 @@ export default function BalancesPage() {
 
     const fetchData = async () => {
       try {
-        const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
+        const houseRes = await fetch(`${API}/api/houses/mine?userId=${userId}`);
         if (!houseRes.ok) {
           router.push('/select-house');
           return;
@@ -67,32 +110,34 @@ export default function BalancesPage() {
           return;
         }
 
-        const activePeriod =
-          houseData.periods?.find((p: Period) => !p.is_closed) ??
-          houseData.periods?.[0];
-        const periodId = activePeriod?.id ?? houseData.periodId;
-        const houseId = houseData.id;
+        const hId: string = houseData.id;
+        setHouseId(hId);
 
-        if (!periodId || !houseId) {
+        let allPeriods: Period[] = [];
+        const periodsRes = await fetch(`${API}/api/periods?houseId=${hId}`).catch(() => null);
+        if (periodsRes && periodsRes.ok) {
+          const pd = await periodsRes.json().catch(() => null);
+          if (Array.isArray(pd)) allPeriods = pd;
+        }
+        if (allPeriods.length === 0 && Array.isArray(houseData.periods)) {
+          allPeriods = houseData.periods;
+        }
+
+        allPeriods = [...allPeriods].sort(
+          (a, b) =>
+            (b.year ?? 0) - (a.year ?? 0) ||
+            (b.month ?? 0) - (a.month ?? 0) ||
+            (b.created_at ?? '').localeCompare(a.created_at ?? '')
+        );
+        setPeriods(allPeriods);
+
+        const initial = allPeriods.find((p) => !p.is_closed) ?? allPeriods[0];
+        if (!initial) {
           setLoading(false);
           return;
         }
-
-        const [balancesRes, paymentsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/balances?periodId=${periodId}&houseId=${houseId}`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments?periodId=${periodId}`),
-        ]);
-
-        if (balancesRes.ok) {
-          const bData = await balancesRes.json();
-          setBalances(Array.isArray(bData?.balances) ? bData.balances : []);
-          setDebts(Array.isArray(bData?.debts) ? bData.debts : []);
-        }
-
-        if (paymentsRes.ok) {
-          const pData = await paymentsRes.json();
-          setPayments(Array.isArray(pData) ? pData : []);
-        }
+        setSelectedPeriodId(initial.id);
+        await loadPeriodData(hId, initial.id);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
       } finally {
@@ -101,6 +146,7 @@ export default function BalancesPage() {
     };
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   if (loading) {
@@ -125,8 +171,38 @@ export default function BalancesPage() {
               Cambiar de casa
             </Link>
           </div>
-          <p className="mt-1 text-sm text-muted">Estado financiero del período activo</p>
+          <p className="mt-1 text-sm text-muted">Estado financiero del período seleccionado</p>
         </div>
+
+        {periods.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="periodSelect" className="text-sm font-semibold text-ink-2">
+              Período:
+            </label>
+            <select
+              id="periodSelect"
+              value={selectedPeriodId}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25"
+            >
+              {periods.map((p) => {
+                const dup =
+                  periods.filter((o) => o.month === p.month && o.year === p.year && o.is_closed === p.is_closed).length > 1;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {String(p.month ?? '--').padStart(2, '0')}/{p.year} - {p.is_closed ? 'Cerrado' : 'Abierto'}
+                    {dup ? ` (#${p.id.slice(0, 4)})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            {isClosed && (
+              <span className="rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-ink-2">
+                Período cerrado – solo lectura
+              </span>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg border border-neg/20 bg-neg-soft p-4 text-sm font-medium text-neg">{error}</div>
@@ -191,13 +267,20 @@ export default function BalancesPage() {
                   <span>
                     <strong>{d.deudor}</strong> le debe a <strong>{d.acreedor}</strong>:{' '}
                     <span className="font-semibold text-neg">${Number(d.monto).toFixed(2)}</span>
+                    {isClosed && (
+                      <span className="ml-3 rounded-full border border-neg/30 bg-neg-soft px-2.5 py-0.5 text-xs font-semibold text-neg">
+                        Pendientes al momento del cierre
+                      </span>
+                    )}
                   </span>
-                  <Link
-                    className="ml-4 font-semibold text-brand hover:underline"
-                    href={`/payments/new?debtorId=${d.deudor_id}&debtorName=${d.deudor}&creditorId=${d.acreedor_id}&creditorName=${d.acreedor}&amount=${d.monto}`}
-                  >
-                    Registrar pago
-                  </Link>
+                  {!isClosed && (
+                    <Link
+                      className="ml-4 font-semibold text-brand hover:underline"
+                      href={`/payments/new?debtorId=${d.deudor_id}&debtorName=${d.deudor}&creditorId=${d.acreedor_id}&creditorName=${d.acreedor}&amount=${d.monto}`}
+                    >
+                      Registrar pago
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>

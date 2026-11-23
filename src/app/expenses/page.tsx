@@ -26,8 +26,13 @@ interface Expense {
 
 interface Period {
   id: string;
+  month?: number;
+  year?: number;
   is_closed?: boolean;
+  created_at?: string;
 }
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -39,6 +44,37 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [expandedExpenses, setExpandedExpenses] = useState<Record<string, boolean>>({});
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+
+  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+  const isClosed = selectedPeriod?.is_closed === true;
+
+  const loadExpenses = async (pId: string) => {
+    const expensesRes = await fetch(`${API}/api/expenses?periodId=${pId}`);
+    if (!expensesRes.ok) {
+      throw new Error('Error al cargar los gastos');
+    }
+    const expensesData = await expensesRes.json();
+    const loaded = Array.isArray(expensesData) ? expensesData : [];
+    setExpenses(
+      loaded.map((exp: Expense) => ({
+        ...exp,
+        category: exp.category || 'Otro',
+      }))
+    );
+    setExpandedExpenses({});
+  };
+
+  const handlePeriodChange = async (pId: string) => {
+    setSelectedPeriodId(pId);
+    setError(null);
+    try {
+      await loadExpenses(pId);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    }
+  };
 
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -69,30 +105,34 @@ export default function ExpensesPage() {
           return;
         }
 
-        const activePeriod =
-          houseData.periods?.find((p: Period) => !p.is_closed) ||
-          houseData.periods?.[0];
+        let allPeriods: Period[] = [];
+        const periodsRes = await fetch(`${API}/api/periods?houseId=${houseData.id}`).catch(() => null);
+        if (periodsRes && periodsRes.ok) {
+          const pd = await periodsRes.json().catch(() => null);
+          if (Array.isArray(pd)) allPeriods = pd;
+        }
+        if (allPeriods.length === 0 && Array.isArray(houseData.periods)) {
+          allPeriods = houseData.periods;
+        }
 
-        const periodId = activePeriod?.id || houseData.periodId;
+        allPeriods = [...allPeriods].sort(
+          (a, b) =>
+            (b.year ?? 0) - (a.year ?? 0) ||
+            (b.month ?? 0) - (a.month ?? 0) ||
+            (b.created_at ?? '').localeCompare(a.created_at ?? '')
+        );
+        setPeriods(allPeriods);
+
+        const initial = allPeriods.find((p) => !p.is_closed) ?? allPeriods[0];
+        const periodId = initial?.id || houseData.periodId;
         if (!periodId) {
           setExpenses([]);
           setLoading(false);
           return;
         }
+        setSelectedPeriodId(periodId);
 
-        const expensesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/expenses?periodId=${periodId}`);
-        if (!expensesRes.ok) {
-          throw new Error('Error al cargar los gastos');
-        }
-
-        const expensesData = await expensesRes.json();
-        const loaded = Array.isArray(expensesData) ? expensesData : [];
-        setExpenses(
-          loaded.map((exp: Expense) => ({
-            ...exp,
-            category: exp.category || 'Otro',
-          }))
-        );
+        await loadExpenses(periodId);
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -158,17 +198,49 @@ export default function ExpensesPage() {
               </Link>
             </div>
             <p className="mt-1 text-sm text-muted">
-              Gastos registrados en el período activo
+              Gastos registrados en el período seleccionado
             </p>
           </div>
 
-          <Link
-            href={activeHouse?.id || activeId ? `/expenses/new?houseId=${activeHouse?.id || activeId}` : '/expenses/new'}
-            className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
-          >
-            Nuevo gasto
-          </Link>
+          {!isClosed && (
+            <Link
+              href={activeHouse?.id || activeId ? `/expenses/new?houseId=${activeHouse?.id || activeId}` : '/expenses/new'}
+              className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-ink transition hover:brightness-110 focus:outline-hidden focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-bg"
+            >
+              Nuevo gasto
+            </Link>
+          )}
         </div>
+
+        {periods.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="periodSelect" className="text-sm font-semibold text-ink-2">
+              Período:
+            </label>
+            <select
+              id="periodSelect"
+              value={selectedPeriodId}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              className="rounded-lg border border-line bg-bg px-3 py-1.5 text-sm text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25"
+            >
+              {periods.map((p) => {
+                const dup =
+                  periods.filter((o) => o.month === p.month && o.year === p.year && o.is_closed === p.is_closed).length > 1;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {String(p.month ?? '--').padStart(2, '0')}/{p.year} - {p.is_closed ? 'Cerrado' : 'Abierto'}
+                    {dup ? ` (#${p.id.slice(0, 4)})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            {isClosed && (
+              <span className="rounded-full border border-line-strong bg-surface-2 px-3 py-1 text-xs font-semibold text-ink-2">
+                Período cerrado – solo lectura
+              </span>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg border border-neg/20 bg-neg-soft p-4 text-sm font-medium text-neg">
