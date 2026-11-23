@@ -64,6 +64,17 @@ const getTodayStr = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+export function validateTaskName(rawName: string): string | null {
+  const trimmed = rawName.trim();
+  if (trimmed.length === 0) {
+    return 'El nombre de la tarea es obligatorio';
+  }
+  if (trimmed.length > 60) {
+    return 'El nombre no puede superar los 60 caracteres';
+  }
+  return null;
+}
+
 export default function TasksPage() {
   const router = useRouter();
   const [house, setHouse] = useState<House | null>(null);
@@ -84,6 +95,7 @@ export default function TasksPage() {
   // Modal nueva tarea
   const [showModal, setShowModal] = useState(false);
   const [taskName, setTaskName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [frequency, setFrequency] = useState('semanal');
   const [selectedRoommateIds, setSelectedRoommateIds] = useState<string[]>([]);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -218,6 +230,7 @@ export default function TasksPage() {
     }
     setPageError(null);
     setTaskName('');
+    setNameError(null);
     setFrequency('semanal');
     setSelectedRoommateIds(roommates.map((r) => r.id));
     setModalError(null);
@@ -227,6 +240,7 @@ export default function TasksPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setTaskName('');
+    setNameError(null);
     setFrequency('semanal');
     setSelectedRoommateIds([]);
     setModalError(null);
@@ -242,11 +256,14 @@ export default function TasksPage() {
     e.preventDefault();
     if (!house?.id || isPeriodClosed) return;
 
-    const trimmed = taskName.trim();
-    if (trimmed.length < 1 || trimmed.length > 60) {
-      setModalError('El nombre de la tarea debe tener entre 1 y 60 caracteres.');
+    const nameValidation = validateTaskName(taskName);
+    if (nameValidation) {
+      setNameError(nameValidation);
       return;
     }
+    setNameError(null);
+
+    const trimmed = taskName.trim();
 
     if (!frequency) {
       setModalError('Debes seleccionar una frecuencia.');
@@ -539,13 +556,27 @@ export default function TasksPage() {
                 <input
                   id="taskName"
                   type="text"
-                  required
                   value={taskName}
-                  onChange={(e) => setTaskName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTaskName(val);
+                    if (val.trim().length > 60) {
+                      setNameError('El nombre no puede superar los 60 caracteres');
+                    } else {
+                      setNameError(null);
+                    }
+                  }}
                   placeholder="Ej. Sacar la basura"
-                  maxLength={60}
-                  className="mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-ink focus:border-brand focus:outline-hidden focus:ring-2 focus:ring-brand/25 sm:text-sm"
+                  aria-invalid={!!nameError}
+                  className={`mt-1 block w-full rounded-lg border bg-bg px-3 py-2 text-ink focus:outline-hidden focus:ring-2 sm:text-sm ${
+                    nameError
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/25 text-neg'
+                      : 'border-line focus:border-brand focus:ring-brand/25'
+                  }`}
                 />
+                {nameError && (
+                  <p className="mt-1 text-sm font-medium text-red-500">{nameError}</p>
+                )}
               </div>
 
               <div>
