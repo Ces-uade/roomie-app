@@ -36,16 +36,38 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function ExpensesPage() {
   const router = useRouter();
-  const { activeHouse } = useHouse();
-  const [activeId, setActiveId] = useState<string | null>(() => activeHouse?.id || (typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null));
+  const {
+    activeHouse,
+    periods: contextPeriods,
+    selectedPeriodId: contextPeriodId,
+    setSelectedPeriodId: setContextPeriodId,
+  } = useHouse();
+  const [activeId, setActiveId] = useState<string | null>(
+    () => activeHouse?.id || (typeof window !== 'undefined' ? localStorage.getItem('activeHouseId') : null)
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [expandedExpenses, setExpandedExpenses] = useState<Record<string, boolean>>({});
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [periods, setPeriods] = useState<Period[]>(contextPeriods || []);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(contextPeriodId || '');
+
+  useEffect(() => {
+    if (contextPeriods && contextPeriods.length > 0) {
+      setPeriods(contextPeriods);
+    }
+  }, [contextPeriods]);
+
+  useEffect(() => {
+    if (contextPeriodId && contextPeriodId !== selectedPeriodId) {
+      setSelectedPeriodId(contextPeriodId);
+      loadExpenses(contextPeriodId).catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+      });
+    }
+  }, [contextPeriodId]);
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
   const isClosed = selectedPeriod?.is_closed === true;
@@ -68,6 +90,7 @@ export default function ExpensesPage() {
 
   const handlePeriodChange = async (pId: string) => {
     setSelectedPeriodId(pId);
+    setContextPeriodId(pId);
     setError(null);
     try {
       await loadExpenses(pId);
@@ -85,7 +108,9 @@ export default function ExpensesPage() {
 
     const fetchData = async () => {
       try {
-        const houseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`);
+        const houseRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/houses/mine?userId=${userId}`
+        );
         if (!houseRes.ok) {
           router.push('/select-house');
           return;
@@ -123,7 +148,14 @@ export default function ExpensesPage() {
         );
         setPeriods(allPeriods);
 
-        const initial = allPeriods.find((p) => !p.is_closed) ?? allPeriods[0];
+        const storedPeriodId = localStorage.getItem('activePeriodId');
+        const validStored = storedPeriodId && allPeriods.some((p) => p.id === storedPeriodId);
+        const initial =
+          (validStored ? allPeriods.find((p) => p.id === storedPeriodId) : undefined) ||
+          (contextPeriodId ? allPeriods.find((p) => p.id === contextPeriodId) : undefined) ||
+          allPeriods.find((p) => !p.is_closed) ||
+          allPeriods[0];
+
         const periodId = initial?.id || houseData.periodId;
         if (!periodId) {
           setExpenses([]);
@@ -131,6 +163,7 @@ export default function ExpensesPage() {
           return;
         }
         setSelectedPeriodId(periodId);
+        setContextPeriodId(periodId);
 
         await loadExpenses(periodId);
       } catch (err: unknown) {

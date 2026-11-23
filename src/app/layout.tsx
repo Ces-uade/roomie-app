@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Fraunces, Karla, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { HouseProvider } from '@/context/HouseContext';
+import AppShell from '@/components/AppShell';
 
 const fraunces = Fraunces({
   variable: '--font-fraunces',
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${fraunces.variable} ${karla.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-bg text-ink">
-        <HouseProvider>{children}</HouseProvider>
+        <HouseProvider>
+          <AppShell>{children}</AppShell>
+        </HouseProvider>
       </body>
     </html>
   );

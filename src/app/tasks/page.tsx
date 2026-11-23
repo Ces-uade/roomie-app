@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { House, Roommate } from '@/context/HouseContext';
+import { House, Roommate, useHouse } from '@/context/HouseContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -77,6 +77,11 @@ export function validateTaskName(rawName: string): string | null {
 
 export default function TasksPage() {
   const router = useRouter();
+  const {
+    periods: contextPeriods,
+    selectedPeriodId: contextPeriodId,
+    setSelectedPeriodId: setContextPeriodId,
+  } = useHouse();
   const [house, setHouse] = useState<House | null>(null);
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -84,10 +89,25 @@ export default function TasksPage() {
   const [pageError, setPageError] = useState<string | null>(null);
 
   // Períodos y estadísticas RM-12
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [periods, setPeriods] = useState<Period[]>(contextPeriods || []);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(contextPeriodId || '');
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    if (contextPeriods && contextPeriods.length > 0) {
+      setPeriods(contextPeriods);
+    }
+  }, [contextPeriods]);
+
+  useEffect(() => {
+    if (contextPeriodId && contextPeriodId !== selectedPeriodId) {
+      setSelectedPeriodId(contextPeriodId);
+      if (house?.id) {
+        fetchStats(house.id, contextPeriodId);
+      }
+    }
+  }, [contextPeriodId, house?.id]);
 
   // Acciones en tareas
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -197,10 +217,18 @@ export default function TasksPage() {
 
         // Fetch Periods
         const loadedPeriods = await fetchPeriods(houseData.id, houseData);
-        const openPeriod = loadedPeriods.find((p) => !p.is_closed) || loadedPeriods[0];
-        if (openPeriod?.id) {
-          setSelectedPeriodId(openPeriod.id);
-          fetchStats(houseData.id, openPeriod.id);
+        const storedPeriodId = localStorage.getItem('activePeriodId');
+        const validStored = storedPeriodId && loadedPeriods.some((p) => p.id === storedPeriodId);
+        const chosenPeriod =
+          (validStored && loadedPeriods.find((p) => p.id === storedPeriodId)) ||
+          (contextPeriodId && loadedPeriods.find((p) => p.id === contextPeriodId)) ||
+          loadedPeriods.find((p) => !p.is_closed) ||
+          loadedPeriods[0];
+
+        if (chosenPeriod?.id) {
+          setSelectedPeriodId(chosenPeriod.id);
+          setContextPeriodId(chosenPeriod.id);
+          fetchStats(houseData.id, chosenPeriod.id);
         }
 
         // Fetch Tasks
@@ -217,6 +245,7 @@ export default function TasksPage() {
 
   const handlePeriodChange = (newPeriodId: string) => {
     setSelectedPeriodId(newPeriodId);
+    setContextPeriodId(newPeriodId);
     if (house?.id) {
       fetchStats(house.id, newPeriodId);
     }

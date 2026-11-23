@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useHouse } from '@/context/HouseContext';
 
 interface BalanceItem {
   id: string;
@@ -38,14 +39,34 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function BalancesPage() {
   const router = useRouter();
+  const {
+    periods: contextPeriods,
+    selectedPeriodId: contextPeriodId,
+    setSelectedPeriodId: setContextPeriodId,
+  } = useHouse();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [balances, setBalances] = useState<BalanceItem[]>([]);
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [houseId, setHouseId] = useState<string | null>(null);
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [periods, setPeriods] = useState<Period[]>(contextPeriods || []);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(contextPeriodId || '');
+
+  useEffect(() => {
+    if (contextPeriods && contextPeriods.length > 0) {
+      setPeriods(contextPeriods);
+    }
+  }, [contextPeriods]);
+
+  useEffect(() => {
+    if (contextPeriodId && contextPeriodId !== selectedPeriodId) {
+      setSelectedPeriodId(contextPeriodId);
+      if (houseId) {
+        loadPeriodData(houseId, contextPeriodId);
+      }
+    }
+  }, [contextPeriodId, houseId]);
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
   const isClosed = selectedPeriod?.is_closed === true;
@@ -79,6 +100,7 @@ export default function BalancesPage() {
 
   const handlePeriodChange = async (pId: string) => {
     setSelectedPeriodId(pId);
+    setContextPeriodId(pId);
     if (houseId) await loadPeriodData(houseId, pId);
   };
 
@@ -131,12 +153,20 @@ export default function BalancesPage() {
         );
         setPeriods(allPeriods);
 
-        const initial = allPeriods.find((p) => !p.is_closed) ?? allPeriods[0];
+        const storedPeriodId = localStorage.getItem('activePeriodId');
+        const validStored = storedPeriodId && allPeriods.some((p) => p.id === storedPeriodId);
+        const initial =
+          (validStored ? allPeriods.find((p) => p.id === storedPeriodId) : undefined) ||
+          (contextPeriodId ? allPeriods.find((p) => p.id === contextPeriodId) : undefined) ||
+          allPeriods.find((p) => !p.is_closed) ||
+          allPeriods[0];
+
         if (!initial) {
           setLoading(false);
           return;
         }
         setSelectedPeriodId(initial.id);
+        setContextPeriodId(initial.id);
         await loadPeriodData(hId, initial.id);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
