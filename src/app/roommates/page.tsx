@@ -8,7 +8,14 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function RoommatesPage() {
   const router = useRouter();
-  const { activeHouse: house, roommates: contextRoommates, setRoommates: setContextRoommates, addRoommate } = useHouse();
+  const {
+    activeHouse: house,
+    roommates: contextRoommates,
+    selectedPeriod,
+    setRoommates: setContextRoommates,
+    addRoommate,
+    refreshHouseData,
+  } = useHouse();
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [newRoommateName, setNewRoommateName] = useState('');
   const [roommateError, setRoommateError] = useState<string | null>(null);
@@ -19,6 +26,18 @@ export default function RoommatesPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+
+  // Estados de eliminación
+  const [targetRoommate, setTargetRoommate] = useState<Roommate | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+
+  const currentUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+  const isHouseOwner = Boolean(
+    house?.owner_id && currentUserId && house.owner_id === currentUserId
+  );
+  const isOpenPeriod = Boolean(selectedPeriod && !selectedPeriod.is_closed);
 
   const handleShareInvite = async () => {
     if (!house?.id) return;
@@ -155,6 +174,57 @@ export default function RoommatesPage() {
     }
   };
 
+  const handleOpenDeleteModal = (rm: Roommate) => {
+    setTargetRoommate(rm);
+    setDeleteError(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (deleting) return;
+    setTargetRoommate(null);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!targetRoommate || !currentUserId) return;
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(
+        `${API}/api/roommates/${targetRoommate.id}?userId=${encodeURIComponent(currentUserId)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'x-user-id': currentUserId,
+          },
+        }
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const msg = data?.error || data?.message || 'Error al eliminar el conviviente';
+        setDeleteError(msg);
+        return;
+      }
+
+      const deletedName = targetRoommate.name;
+      setTargetRoommate(null);
+      setDeleteSuccess(`Se eliminó a ${deletedName} de la casa`);
+      setTimeout(() => setDeleteSuccess(null), 4000);
+
+      await refreshHouseData();
+      if (house?.id) {
+        await fetchRoommates(house.id);
+      }
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -174,6 +244,12 @@ export default function RoommatesPage() {
             Gestioná los miembros de la casa y compartí invitaciones.
           </p>
         </div>
+
+        {deleteSuccess && (
+          <div className="rounded-lg border border-brand/20 bg-brand-soft p-4 text-sm font-medium text-brand">
+            {deleteSuccess}
+          </div>
+        )}
 
         {roommates.length < 2 && (
           <div className="rounded-lg border border-warn/20 bg-warn-soft p-4 text-sm font-medium text-warn">
@@ -264,19 +340,77 @@ export default function RoommatesPage() {
                   No hay convivientes registrados aún.
                 </p>
               ) : (
-                roommates.map((rm) => (
-                  <div key={rm.id} className="flex items-center justify-between p-3">
-                    <span className="font-medium text-ink">{rm.name}</span>
-                    <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
-                      Activo
-                    </span>
-                  </div>
-                ))
+                roommates.map((rm) => {
+                  const canDelete =
+                    isHouseOwner &&
+                    isOpenPeriod &&
+                    !rm.is_owner &&
+                    rm.user_id !== house?.owner_id;
+
+                  return (
+                    <div key={rm.id} className="flex items-center justify-between p-3 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-ink truncate">{rm.name}</span>
+                        {rm.is_owner ? (
+                          <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
+                            Creador
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-ink-2">
+                            Activo
+                          </span>
+                        )}
+                      </div>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDeleteModal(rm)}
+                          className="rounded-lg border border-neg/30 px-2.5 py-1 text-xs font-semibold text-neg transition hover:bg-neg-soft"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
         </div>
+
+        {/* Modal de confirmación de eliminación */}
+        {targetRoommate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-card">
+              <h3 className="font-display text-lg font-semibold text-ink">
+                ¿Eliminar a {targetRoommate.name} de la casa?
+              </h3>
+              {deleteError && (
+                <p className="mt-2 text-sm font-medium text-neg">{deleteError}</p>
+              )}
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseDeleteModal}
+                  disabled={deleting}
+                  className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                  className="rounded-lg bg-neg px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {deleting ? 'Eliminando...' : 'Confirmar eliminación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

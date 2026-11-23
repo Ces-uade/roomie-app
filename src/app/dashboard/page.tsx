@@ -12,7 +12,12 @@ interface Roommate {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { activeHouse: house, setRoommates: setContextRoommates, addRoommate } = useHouse();
+  const {
+    activeHouse: house,
+    roommates: contextRoommates,
+    setRoommates: setContextRoommates,
+    addRoommate,
+  } = useHouse();
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [newRoommateName, setNewRoommateName] = useState('');
   const [roommateError, setRoommateError] = useState<string | null>(null);
@@ -68,7 +73,8 @@ export default function DashboardPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        const list = Array.isArray(data) ? data : data?.roommates || [];
+        const rawList = Array.isArray(data) ? data : data?.roommates || [];
+        const list = rawList.filter((r: Roommate & { is_active?: boolean }) => r.is_active !== false);
         setRoommates(list);
         setContextRoommates(list);
       }
@@ -97,6 +103,12 @@ export default function DashboardPage() {
       fetchRoommates(targetId).finally(() => setLoading(false));
     }
   }, [houseId, router]);
+
+  useEffect(() => {
+    if (contextRoommates && contextRoommates.length > 0) {
+      setRoommates(contextRoommates.filter((r: Roommate & { is_active?: boolean }) => r.is_active !== false));
+    }
+  }, [contextRoommates]);
 
   const handleAddRoommate = async (e: FormEvent) => {
     e.preventDefault();

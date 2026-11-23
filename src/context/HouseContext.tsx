@@ -8,6 +8,9 @@ export interface Roommate {
   id: string;
   name: string;
   house_id?: string;
+  user_id?: string | null;
+  is_owner?: boolean;
+  is_active?: boolean;
 }
 
 export interface Period {
@@ -22,6 +25,7 @@ export interface Period {
 export interface House {
   id: string;
   name: string;
+  owner_id?: string;
   month?: number;
   year?: number;
   periods?: Period[];
